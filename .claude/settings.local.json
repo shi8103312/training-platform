@@ -37,7 +37,8 @@
       "Bash(nohup python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload)",
       "Bash(pkill -f \"python.*8000\")",
       "Bash(taskkill //F //PID 16044)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m 'Initial commit: 企业内部员工培训平台 *)"
     ]
   }
 }
