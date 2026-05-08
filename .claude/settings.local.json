@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la \"D:/Users/1000199/.openclaw/workspace/projects/training-platform/for-claude-code/01-requirements/\")",
+      "Read(//d/Users/1000199/.openclaw/workspace/projects/training-platform/for-claude-code/01-requirements/**)",
+      "Bash(ls -la \"D:/Users/1000199/.openclaw/workspace/projects/training-platform/for-claude-code/02-database/\")",
+      "Read(//d/Users/1000199/.openclaw/workspace/projects/training-platform/for-claude-code/02-database/**)",
+      "Bash(ls -la \"D:/Users/1000199/.openclaw/workspace/projects/training-platform/for-claude-code/03-api/\")",
+      "Read(//d/Users/1000199/.openclaw/workspace/projects/training-platform/for-claude-code/03-api/**)",
+      "Bash(ls -la \"D:/Users/1000199/.openclaw/workspace/projects/training-platform/for-claude-code/04-frontend/\")",
+      "Read(//d/Users/1000199/.openclaw/workspace/projects/training-platform/for-claude-code/04-frontend/**)",
+      "Bash(ls -la \"D:/Users/1000199/.openclaw/workspace/projects/training-platform/for-claude-code/05-backend/\")",
+      "Read(//d/Users/1000199/.openclaw/workspace/projects/training-platform/for-claude-code/05-backend/**)",
+      "Bash(ls -la \"D:/Users/1000199/.openclaw/workspace/projects/training-platform/for-claude-code/06-security/\")",
+      "Read(//d/Users/1000199/.openclaw/workspace/projects/training-platform/for-claude-code/06-security/**)",
+      "Bash(ls -la \"D:/Users/1000199/.openclaw/workspace/projects/training-platform/for-claude-code/07-checklists/\")",
+      "Read(//d/Users/1000199/.openclaw/workspace/projects/training-platform/for-claude-code/07-checklists/**)",
+      "Bash(ls -la \"D:/Users/1000199/.openclaw/workspace/projects/training-platform/for-claude-code/04-implementation/\")",
+      "Read(//d/Users/1000199/.openclaw/workspace/projects/training-platform/for-claude-code/04-implementation/**)"
+    ]
+  }
+}

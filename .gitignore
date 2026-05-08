@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+dist/
+*.local
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Uploads
+uploads/
+*.tmp
+
+# Database
+*.sql.gz
+
+# Backend
+backend/__pycache__/
+backend/*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Frontend
+frontend/src/components/**/.eslintrc.js

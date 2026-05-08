@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git init *)",
+      "Bash(npm install *)",
+      "Bash(pip install *)",
+      "Bash(python -c \"from app.main import app; print\\('Backend import OK'\\)\")",
+      "Bash(pip show *)",
+      "Bash(python -c \"import redis.asyncio; print\\('OK'\\)\")",
+      "Bash(python -c \"import sys; sys.path.insert\\(0, '.'\\); from app.main import app; print\\('Backend import OK'\\)\")",
+      "Bash(python -c \"from sqlalchemy import Integer, String; from sqlalchemy.dialects.mysql import TINYINT; print\\('TINYINT OK'\\)\")",
+      "Bash(npm run *)"
+    ]
+  }
+}
