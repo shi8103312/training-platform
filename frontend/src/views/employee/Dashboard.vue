@@ -1,114 +1,108 @@
 <template>
   <div class="dashboard">
-    <h2 class="page-title">欢迎回来，{{ userStore.userInfo?.real_name }}</h2>
+    <!-- 欢迎横幅 -->
+    <div class="welcome-banner">
+      <h2>👋 {{ userStore.userInfo?.real_name || '用户' }}，欢迎回来！</h2>
+      <p>您有 {{ stats.pendingCount }} 项培训即将截止，请尽快完成学习～</p>
+    </div>
 
-    <el-row :gutter="20" class="stats-row">
-      <el-col :span="6">
-        <el-card shadow="hover">
-          <div class="stat-card">
-            <div class="stat-icon" style="background: #409eff">
-              <el-icon><Reading /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.requiredCount }}</div>
-              <div class="stat-label">必修项目</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover">
-          <div class="stat-card">
-            <div class="stat-icon" style="background: #67c23a">
-              <el-icon><CircleCheck /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.completedCount }}</div>
-              <div class="stat-label">已完成</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover">
-          <div class="stat-card">
-            <div class="stat-icon" style="background: #e6a23c">
-              <el-icon><Clock /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.pendingCount }}</div>
-              <div class="stat-label">进行中</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover">
-          <div class="stat-card">
-            <div class="stat-icon" style="background: #f56c6c">
-              <el-icon><Warning /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.overdueCount }}</div>
-              <div class="stat-label">已逾期</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <!-- 统计卡片 -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="icon blue">📚</div>
+        <div class="value">{{ stats.requiredCount }}</div>
+        <div class="label">进行中的培训</div>
+      </div>
+      <div class="stat-card">
+        <div class="icon green">✅</div>
+        <div class="value">{{ stats.completedCount }}</div>
+        <div class="label">已完成培训</div>
+      </div>
+      <div class="stat-card">
+        <div class="icon orange">⏰</div>
+        <div class="value">{{ stats.pendingCount }}</div>
+        <div class="label">待完成考试</div>
+      </div>
+      <div class="stat-card">
+        <div class="icon purple">🔔</div>
+        <div class="value">{{ notificationCount }}</div>
+        <div class="label">未读通知</div>
+      </div>
+    </div>
 
-    <el-card class="recent-card">
-      <template #header>
-        <div class="card-header">
-          <span>最近学习</span>
-          <el-button type="primary" link @click="$router.push('/training')">
-            查看全部
-          </el-button>
+    <!-- 进行中培训 -->
+    <div class="section-title">
+      <span>📖 进行中的培训</span>
+      <router-link to="/training">查看全部 →</router-link>
+    </div>
+    <div class="training-grid" v-if="inProgressProjects.length">
+      <div
+        v-for="project in inProgressProjects"
+        :key="project.project_id"
+        class="training-card"
+        @click="$router.push(`/training/${project.project_id}`)"
+      >
+        <div class="training-cover" :style="{ background: getCoverGradient(project) }">
+          {{ getCoverEmoji(project) }}
         </div>
-      </template>
-
-      <el-empty v-if="recentProjects.length === 0" description="暂无学习记录" />
-
-      <div v-else class="recent-list">
-        <div
-          v-for="project in recentProjects"
-          :key="project.project_id"
-          class="recent-item"
-          @click="$router.push(`/training/${project.project_id}`)"
-        >
-          <div class="item-cover">
-            <img v-if="project.cover_image" :src="project.cover_image" />
-            <div v-else class="cover-placeholder">
-              <el-icon><Reading /></el-icon>
-            </div>
+        <div class="training-content">
+          <div class="training-title">{{ project.title }}</div>
+          <div class="training-meta">
+            <span class="tag" :class="project.is_required ? 'required' : 'optional'">
+              {{ project.is_required ? '必修' : '选修' }}
+            </span>
+            <span class="tag deadline" v-if="project.deadline">
+              还剩{{ getDaysLeft(project.deadline) }}天
+            </span>
           </div>
-          <div class="item-info">
-            <h4>{{ project.title }}</h4>
-            <p class="item-meta">
-              <el-tag size="small" :type="project.is_required ? 'danger' : 'info'">
-                {{ project.is_required ? '必修' : '选修' }}
-              </el-tag>
-              <span class="deadline">
-                截止: {{ formatDate(project.deadline) }}
-              </span>
-            </p>
-            <el-progress
-              :percentage="project.progress || 0"
-              :stroke-width="6"
-              :show-text="false"
-            />
+          <div class="progress-bar">
+            <div class="fill" :style="{ width: (project.progress || 0) + '%' }"></div>
+          </div>
+          <div class="progress-text">
+            <span>学习进度 {{ project.progress || 0 }}%</span>
+            <span>{{ project.materialCompleted || 0 }}/{{ project.materialTotal || 0 }} 材料</span>
           </div>
         </div>
       </div>
-    </el-card>
+    </div>
+    <div class="empty-tip" v-else>
+      <p>暂无进行中的培训</p>
+    </div>
+
+    <!-- 最近通知 -->
+    <div class="section-title">
+      <span>🔔 最近通知</span>
+      <router-link to="/notification">查看全部 →</router-link>
+    </div>
+    <div class="notification-list" v-if="recentNotifications.length">
+      <div
+        v-for="notif in recentNotifications"
+        :key="notif.notif_id"
+        class="notification-item"
+        :class="{ unread: notif.read_status === 0 }"
+      >
+        <div class="notif-icon">{{ getNotifIcon(notif.notif_type) }}</div>
+        <div class="notif-content">
+          <div class="notif-title">{{ notif.title }}</div>
+          <div class="notif-time">{{ formatTime(notif.create_time) }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="empty-tip" v-else>
+      <p>暂无通知</p>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useTrainingStore } from '@/stores/training'
+import { getMyNotifications } from '@/api/notification'
 import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+
+dayjs.extend(relativeTime)
 
 const userStore = useUserStore()
 const trainingStore = useTrainingStore()
@@ -117,158 +111,342 @@ const stats = ref({
   requiredCount: 0,
   completedCount: 0,
   pendingCount: 0,
-  overdueCount: 0,
 })
 
-const recentProjects = ref([])
+const notificationCount = ref(0)
+const inProgressProjects = ref([])
+const recentNotifications = ref([])
 
-function formatDate(date) {
-  return dayjs(date).format('YYYY-MM-DD')
+function getCoverGradient(project) {
+  const gradients = [
+    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+    'linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%)',
+    'linear-gradient(135deg, #52c41a 0%, #73d13d 100%)',
+    'linear-gradient(135deg, #1890ff 0%, #69c0ff 100%)',
+    'linear-gradient(135deg, #722ed1 0%, #b37feb 100%)',
+  ]
+  const index = project.project_id?.charCodeAt(project.project_id.length - 1) % gradients.length || 0
+  return gradients[index]
 }
 
-onMounted(async () => {
-  await trainingStore.fetchProjectList({ page: 1, page_size: 4 })
+function getCoverEmoji(project) {
+  if (!project.title) return '📚'
+  if (project.title.includes('安全')) return '🛡️'
+  if (project.title.includes('技能')) return '💻'
+  if (project.title.includes('制度')) return '📋'
+  if (project.title.includes('沟通')) return '🤝'
+  if (project.title.includes('数据')) return '🔒'
+  return '📚'
+}
 
-  recentProjects.value = trainingStore.projectList.map((p) => ({
-    ...p,
-    progress: Math.floor(Math.random() * 100), // TODO: Get actual progress
-  }))
+function getDaysLeft(deadline) {
+  if (!deadline) return 0
+  const now = dayjs()
+  const end = dayjs(deadline)
+  return Math.max(0, end.diff(now, 'day'))
+}
 
-  // Calculate stats
-  stats.value.requiredCount = trainingStore.projectList.filter(
-    (p) => p.is_required
-  ).length
-  stats.value.completedCount = Math.floor(stats.value.requiredCount * 0.4)
-  stats.value.pendingCount = Math.floor(stats.value.requiredCount * 0.4)
-  stats.value.overdueCount = stats.value.requiredCount - stats.value.completedCount - stats.value.pendingCount
+function getNotifIcon(type) {
+  const icons = { 1: '📚', 2: '⏰', 3: '📝' }
+  return icons[type] || '🔔'
+}
+
+function formatTime(time) {
+  if (!time) return ''
+  return dayjs(time).fromNow()
+}
+
+async function fetchDashboardData() {
+  try {
+    // Fetch project list
+    await trainingStore.fetchProjectList({ page: 1, page_size: 50 })
+    const projects = trainingStore.projectList || []
+
+    // Fetch user progress for each project
+    const inProgress = []
+    let completed = 0
+
+    for (const project of projects) {
+      try {
+        const progressRes = await trainingStore.fetchProgress(project.project_id)
+        const progress = progressRes?.data
+        const progressPct = progress?.overall_status === 2 ? 100 : (progress?.overall_status === 1 ? 50 : 0)
+
+        if (progressPct >= 100) {
+          completed++
+        } else {
+          inProgress.push({
+            ...project,
+            progress: progressPct,
+            materialCompleted: progress?.materials?.filter(m => m.is_completed).length || 0,
+            materialTotal: progress?.materials?.length || 0,
+          })
+        }
+      } catch (e) {
+        inProgress.push({
+          ...project,
+          progress: 0,
+          materialCompleted: 0,
+          materialTotal: 0,
+        })
+      }
+    }
+
+    inProgressProjects.value = inProgress.slice(0, 6)
+    stats.value.requiredCount = inProgress.length
+    stats.value.completedCount = completed
+    stats.value.pendingCount = 0 // Would need exam API
+
+    // Fetch notifications
+    try {
+      const notifRes = await getMyNotifications({ page: 1, page_size: 5 })
+      if (notifRes.code === 0) {
+        recentNotifications.value = notifRes.data || []
+        notificationCount.value = notifRes.data?.filter(n => n.read_status === 0).length || 0
+      }
+    } catch (e) {
+      console.error('Failed to fetch notifications:', e)
+    }
+  } catch (error) {
+    console.error('Failed to fetch dashboard data:', error)
+  }
+}
+
+onMounted(() => {
+  fetchDashboardData()
 })
 </script>
 
 <style scoped>
 .dashboard {
-  max-width: 1200px;
+  max-width: 1400px;
 }
 
-.page-title {
+.welcome-banner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 30px;
+  color: #fff;
+  margin-bottom: 30px;
+}
+
+.welcome-banner h2 {
   font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0 0 24px;
+  margin-bottom: 8px;
+}
+
+.welcome-banner p {
+  font-size: 14px;
+  opacity: 0.9;
 }
 
 .stats-row {
-  margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 30px;
 }
 
 .stat-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
 }
 
-.stat-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
+.stat-card .icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin-bottom: 15px;
+}
+
+.stat-card .icon.blue { background: #e6f0ff; }
+.stat-card .icon.green { background: #e6f7ed; }
+.stat-card .icon.orange { background: #fff3e6; }
+.stat-card .icon.purple { background: #f3e6ff; }
+
+.stat-card .value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.stat-card .label {
+  font-size: 14px;
+  color: #999;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.section-title a {
+  font-size: 14px;
+  color: #667eea;
+  text-decoration: none;
+}
+
+.section-title a:hover {
+  text-decoration: underline;
+}
+
+.training-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.training-card {
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s, box-shadow 0.3s;
+  cursor: pointer;
+}
+
+.training-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.training-cover {
+  height: 120px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 24px;
+  font-size: 40px;
 }
 
-.stat-value {
-  font-size: 28px;
+.training-content {
+  padding: 16px;
+}
+
+.training-title {
+  font-size: 15px;
   font-weight: 600;
-  color: #303133;
+  color: #333;
+  margin-bottom: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.stat-label {
-  font-size: 14px;
-  color: #909399;
+.training-meta {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 12px;
 }
 
-.recent-card {
-  margin-top: 20px;
+.tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  margin-right: 6px;
 }
 
-.card-header {
+.tag.required { background: #ffecde; color: #ff6600; }
+.tag.optional { background: #e6f7ed; color: #00a854; }
+.tag.deadline { background: #fff; color: #d93026; border: 1px solid #d93026; }
+
+.progress-bar {
+  height: 5px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-bar .fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  border-radius: 3px;
+}
+
+.progress-text {
+  font-size: 11px;
+  color: #999;
   display: flex;
   justify-content: space-between;
-  align-items: center;
 }
 
-.recent-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-}
-
-.recent-item {
-  display: flex;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid #ebeef5;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.recent-item:hover {
-  border-color: #409eff;
-  box-shadow: 0 2px 12px rgba(64, 158, 255, 0.1);
-}
-
-.item-cover {
-  width: 80px;
-  height: 60px;
-  border-radius: 4px;
+.notification-list {
+  background: #fff;
+  border-radius: 10px;
   overflow: hidden;
-  flex-shrink: 0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  margin-bottom: 40px;
 }
 
-.item-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.notification-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f5f7fa;
 }
 
-.cover-placeholder {
-  width: 100%;
-  height: 100%;
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item.unread {
+  background: #f8f8ff;
+}
+
+.notification-item:hover {
   background: #f5f7fa;
+}
+
+.notif-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #e6f0ff;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #c0c4cc;
-  font-size: 24px;
+  font-size: 18px;
 }
 
-.item-info {
+.notif-content {
   flex: 1;
-  min-width: 0;
 }
 
-.item-info h4 {
+.notif-title {
   font-size: 14px;
-  font-weight: 500;
-  color: #303133;
-  margin: 0 0 6px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: #333;
+  margin-bottom: 4px;
 }
 
-.item-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.notif-time {
   font-size: 12px;
-  color: #909399;
-  margin: 0 0 8px;
+  color: #999;
 }
 
-.deadline {
-  color: #e6a23c;
+.empty-tip {
+  text-align: center;
+  padding: 40px;
+  background: #fff;
+  border-radius: 10px;
+  margin-bottom: 40px;
+  color: #999;
 }
 </style>

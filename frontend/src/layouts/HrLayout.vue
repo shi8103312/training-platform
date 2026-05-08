@@ -1,52 +1,71 @@
 <template>
-  <el-container class="hr-layout">
-    <el-header class="header">
-      <div class="header-left">
-        <h1 class="logo">培训平台 - 管理后台</h1>
-      </div>
-      <div class="header-right">
-        <el-space>
-          <el-button type="primary" @click="goToTraining">培训管理</el-button>
-          <el-button @click="goToEmployee">返回员工端</el-button>
-        </el-space>
-        <el-dropdown @command="handleCommand">
-          <span class="user-info">
-            <el-avatar :size="32" icon="User" />
-            <span class="username">{{ userStore.userInfo?.real_name }}</span>
-            <el-tag type="danger" size="small">HR管理员</el-tag>
-          </span>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-      </div>
-    </el-header>
+  <div class="hr-layout">
+    <div class="layout">
+      <!-- 侧边栏 -->
+      <aside class="sidebar">
+        <div class="sidebar-logo">
+          <span class="icon">🏢</span>
+          <span>培训管理后台</span>
+        </div>
 
-    <el-container>
-      <el-aside width="220px" class="sidebar">
-        <el-menu :default-active="activeMenu" router class="sidebar-menu">
-          <el-menu-item index="/hr">
-            <el-icon><DataAnalysis /></el-icon>
-            <span>数据看板</span>
-          </el-menu-item>
-          <el-menu-item index="/hr/training">
-            <el-icon><Reading /></el-icon>
-            <span>培训项目管理</span>
-          </el-menu-item>
-          <el-menu-item index="/hr/department">
-            <el-icon><OfficeBuilding /></el-icon>
+        <nav class="sidebar-nav">
+          <router-link to="/hr" class="nav-item" :class="{ active: route.path === '/hr' }">
+            <span class="icon">📊</span>
+            <span>工作台</span>
+          </router-link>
+          <router-link to="/hr/training" class="nav-item" :class="{ active: route.path.startsWith('/hr/training') }">
+            <span class="icon">📚</span>
+            <span>培训管理</span>
+          </router-link>
+          <router-link to="/hr/department" class="nav-item" :class="{ active: route.path === '/hr/department' }">
+            <span class="icon">👥</span>
             <span>部门管理</span>
-          </el-menu-item>
-        </el-menu>
-      </el-aside>
+          </router-link>
+          <router-link to="/hr/progress" class="nav-item" :class="{ active: route.path === '/hr/progress' }">
+            <span class="icon">📈</span>
+            <span>学习报表</span>
+          </router-link>
+          <router-link to="/hr/notification" class="nav-item" :class="{ active: route.path === '/hr/notification' }">
+            <span class="icon">✉️</span>
+            <span>发送通知</span>
+          </router-link>
+          <router-link to="/hr/settings" class="nav-item" :class="{ active: route.path === '/hr/settings' }">
+            <span class="icon">⚙️</span>
+            <span>系统设置</span>
+          </router-link>
+        </nav>
 
-      <el-main class="main-content">
-        <router-view />
-      </el-main>
-    </el-container>
-  </el-container>
+        <div class="sidebar-footer">
+          <div class="user-card">
+            <div class="user-avatar">👔</div>
+            <div class="user-details">
+              <div class="name">{{ userStore.userInfo?.real_name || '管理员' }}</div>
+              <div class="role">HR管理员</div>
+            </div>
+          </div>
+          <button class="logout-btn" @click="handleLogout">
+            <span class="icon">🚪</span>
+            <span>退出登录</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- 主内容 -->
+      <main class="main-content">
+        <header class="top-header">
+          <div class="page-title">{{ pageTitle }}</div>
+          <div class="header-actions">
+            <button class="btn btn-outline" @click="exportData">📤 导出数据</button>
+            <button class="btn btn-primary" @click="createTraining">➕ 创建培训</button>
+          </div>
+        </header>
+
+        <div class="content">
+          <router-view />
+        </div>
+      </main>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -59,80 +78,251 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
-const activeMenu = computed(() => route.path)
-
-function goToTraining() {
-  router.push('/hr/training')
-}
-
-function goToEmployee() {
-  router.push('/')
-}
-
-function handleCommand(command) {
-  if (command === 'logout') {
-    ElMessageBox.confirm('确定要退出登录吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }).then(() => {
-      userStore.logout()
-    })
+const pageTitle = computed(() => {
+  const titles = {
+    '/hr': '工作台',
+    '/hr/training': '培训项目管理',
+    '/hr/training/create': '创建培训',
+    '/hr/training/manage': '管理培训',
+    '/hr/department': '部门管理',
+    '/hr/progress': '学习报表',
+    '/hr/notification': '发送通知',
+    '/hr/settings': '系统设置',
   }
+  return titles[route.path] || '工作台'
+})
+
+function exportData() {
+  // TODO: Implement export functionality
+}
+
+function createTraining() {
+  router.push('/hr/training/create')
+}
+
+function handleLogout() {
+  ElMessageBox.confirm('确定退出登录吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  }).then(() => {
+    userStore.logout()
+    router.push('/login')
+  })
 }
 </script>
 
 <style scoped>
-.hr-layout {
-  height: 100vh;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #fff;
-  border-bottom: 1px solid #e4e7ed;
-  padding: 0 20px;
-}
-
-.header-left .logo {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
+* {
   margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-.header-right {
+.hr-layout {
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+}
+
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* 侧边栏 */
+.sidebar {
+  width: 220px;
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-logo {
+  padding: 20px;
+  font-size: 16px;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 10px;
+}
+
+.sidebar-logo .icon {
+  font-size: 24px;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 15px 0;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  font-size: 14px;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.nav-item.active {
+  background: rgba(102, 126, 234, 0.3);
+  color: #fff;
+  border-left: 3px solid #667eea;
+}
+
+.nav-item .icon {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+}
+
+.sidebar-footer {
+  padding: 15px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #667eea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
 }
 
 .user-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   cursor: pointer;
 }
 
-.username {
+.user-details .name {
   font-size: 14px;
-  color: #606266;
+  font-weight: 500;
 }
 
-.sidebar {
-  background: #fff;
-  border-right: 1px solid #e4e7ed;
+.user-details .role {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
 }
 
-.sidebar-menu {
-  border-right: none;
+.logout-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s;
 }
 
+.logout-btn:hover {
+  background: rgba(255, 77, 79, 0.2);
+  color: #ff6b6b;
+}
+
+/* 主内容 */
 .main-content {
-  background: #f5f7fa;
-  padding: 20px;
-  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #f0f2f5;
+}
+
+.top-header {
+  background: #fff;
+  padding: 0 30px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn {
+  height: 36px;
+  padding: 0 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-outline {
+  background: #fff;
+  color: #667eea;
+  border: 1px solid #667eea;
+}
+
+.btn-outline:hover {
+  background: #f5f7ff;
+}
+
+.btn-success {
+  background: #52c41a;
+  color: #fff;
+}
+
+.btn-success:hover {
+  background: #3cb520;
+}
+
+.btn-warning {
+  background: #fa8c16;
+  color: #fff;
+}
+
+.content {
+  flex: 1;
+  padding: 25px;
 }
 </style>

@@ -39,6 +39,7 @@ class Notification(Base):
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id])
+    project = relationship("Project", foreign_keys=[project_id])
 
     @property
     def notif_type_text(self) -> str:

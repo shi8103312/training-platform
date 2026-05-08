@@ -11,7 +11,7 @@ from .config import settings
 from .database import init_db
 from .redis import close_redis
 
-from .api.v1 import auth, user, department, training, material, progress, exam, comment, notification
+from .api.v1 import auth, user, department, training, material, progress, exam, comment, notification, system_settings
 
 
 @asynccontextmanager
@@ -85,6 +85,7 @@ app.include_router(progress.router, prefix=settings.API_V1_PREFIX)
 app.include_router(exam.router, prefix=settings.API_V1_PREFIX)
 app.include_router(comment.router, prefix=settings.API_V1_PREFIX)
 app.include_router(notification.router, prefix=settings.API_V1_PREFIX)
+app.include_router(system_settings.router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/")

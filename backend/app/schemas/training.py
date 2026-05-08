@@ -3,7 +3,7 @@ Training Project and Material Schemas
 """
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, List, Union
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 # ============ Project Schemas ============
@@ -41,7 +41,10 @@ class CreateProjectRequest(BaseModel):
     @field_validator("deadline")
     @classmethod
     def validate_deadline(cls, v):
-        if v <= datetime.now():
+        now = datetime.now(timezone.utc)
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
+        if v <= now:
             raise ValueError("截止日期必须晚于当前时间")
         return v
 

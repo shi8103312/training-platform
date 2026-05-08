@@ -1,206 +1,464 @@
 <template>
   <div class="hr-dashboard">
-    <h2 class="page-title">管理后台</h2>
+    <!-- 统计卡片 -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="header">
+          <div class="icon" style="background: #e6f0ff">📚</div>
+          <span class="trend up" v-if="statsTrend.projectChange > 0">↑ {{ statsTrend.projectChange }}%</span>
+          <span class="trend down" v-else-if="statsTrend.projectChange < 0">↓ {{ Math.abs(statsTrend.projectChange) }}%</span>
+        </div>
+        <div class="value">{{ stats.projectCount }}</div>
+        <div class="label">进行中培训</div>
+      </div>
+      <div class="stat-card">
+        <div class="header">
+          <div class="icon" style="background: #e6f7ed">👥</div>
+          <span class="trend up" v-if="statsTrend.employeeChange > 0">↑ {{ statsTrend.employeeChange }}%</span>
+          <span class="trend down" v-else-if="statsTrend.employeeChange < 0">↓ {{ Math.abs(statsTrend.employeeChange) }}%</span>
+        </div>
+        <div class="value">{{ stats.employeeCount }}</div>
+        <div class="label">参与员工</div>
+      </div>
+      <div class="stat-card">
+        <div class="header">
+          <div class="icon" style="background: #fff3e6">⏰</div>
+          <span class="trend down" v-if="statsTrend.pendingChange > 0">↑ {{ statsTrend.pendingChange }}%</span>
+          <span class="trend up" v-else-if="statsTrend.pendingChange < 0">↓ {{ Math.abs(statsTrend.pendingChange) }}%</span>
+        </div>
+        <div class="value">{{ stats.pendingCount }}</div>
+        <div class="label">待完成人数</div>
+      </div>
+      <div class="stat-card">
+        <div class="header">
+          <div class="icon" style="background: #f3e6ff">🏆</div>
+          <span class="trend up" v-if="statsTrend.completionChange > 0">↑ {{ statsTrend.completionChange }}%</span>
+          <span class="trend down" v-else-if="statsTrend.completionChange < 0">↓ {{ Math.abs(statsTrend.completionChange) }}%</span>
+        </div>
+        <div class="value">{{ stats.completionRate }}%</div>
+        <div class="label">平均完成率</div>
+      </div>
+    </div>
 
-    <el-row :gutter="20" class="stats-row">
-      <el-col :span="6">
-        <el-card shadow="hover">
-          <div class="stat-card">
-            <div class="stat-icon" style="background: #409eff">
-              <el-icon><Reading /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.projectCount }}</div>
-              <div class="stat-label">培训项目</div>
-            </div>
+    <!-- 图表区域 -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">📈 学习趋势（近7天）</div>
+        <div class="chart-placeholder">
+          <div class="bars">
+            <div v-for="(val, idx) in trendData" :key="idx" class="bar" :style="{ height: val + 'px' }"></div>
           </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover">
-          <div class="stat-card">
-            <div class="stat-icon" style="background: #67c23a">
-              <el-icon><User /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.employeeCount }}</div>
-              <div class="stat-label">员工总数</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover">
-          <div class="stat-card">
-            <div class="stat-icon" style="background: #e6a23c">
-              <el-icon><Clock /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.ongoingCount }}</div>
-              <div class="stat-label">进行中</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover">
-          <div class="stat-card">
-            <div class="stat-icon" style="background: #f56c6c">
-              <el-icon><Warning /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.completionRate }}%</div>
-              <div class="stat-label">完成率</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+          <span>每日参与学习人数</span>
+        </div>
+      </div>
 
-    <el-row :gutter="20">
-      <el-col :span="16">
-        <el-card>
-          <template #header>
-            <span>最近培训项目</span>
-          </template>
-          <el-table :data="recentProjects" style="width: 100%">
-            <el-table-column prop="title" label="项目名称" />
-            <el-table-column prop="status_text" label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)">
-                  {{ row.status_text }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="deadline" label="截止日期" width="120">
-              <template #default="{ row }">
-                {{ formatDate(row.deadline) }}
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="120">
-              <template #default="{ row }">
-                <el-button type="primary" link @click="$router.push(`/hr/training/${row.project_id}/edit`)">
-                  编辑
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-card>
-      </el-col>
+      <div class="chart-card">
+        <div class="chart-title">⚡ 快捷操作</div>
+        <div class="quick-actions">
+          <button class="quick-btn" @click="$router.push('/hr/training/create')">
+            <span class="icon">📚</span>
+            <span class="text">创建培训</span>
+          </button>
+          <button class="quick-btn" @click="$router.push('/hr/training')">
+            <span class="icon">✏️</span>
+            <span class="text">管理项目</span>
+          </button>
+          <button class="quick-btn" @click="$router.push('/hr/department')">
+            <span class="icon">📤</span>
+            <span class="text">导入部门</span>
+          </button>
+          <button class="quick-btn" @click="$router.push('/hr/notification')">
+            <span class="icon">✉️</span>
+            <span class="text">发送通知</span>
+          </button>
+        </div>
+      </div>
+    </div>
 
-      <el-col :span="8">
-        <el-card>
-          <template #header>
-            <span>快捷操作</span>
-          </template>
-          <div class="quick-actions">
-            <el-button type="primary" @click="$router.push('/hr/training/create')">
-              <el-icon><Plus /></el-icon>
-              创建培训项目
-            </el-button>
-            <el-button @click="$router.push('/hr/department')">
-              <el-icon><OfficeBuilding /></el-icon>
-              部门管理
-            </el-button>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <!-- 最新培训列表 -->
+    <div class="data-card">
+      <div class="header">
+        <span class="title">📋 进行中培训</span>
+        <button class="btn btn-outline" style="height: 32px; font-size: 13px" @click="$router.push('/hr/training')">
+          查看全部
+        </button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>培训名称</th>
+            <th>类型</th>
+            <th>参与人数</th>
+            <th>完成率</th>
+            <th>截止日期</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="project in projectList" :key="project.project_id">
+            <td>{{ project.title }}</td>
+            <td>
+              <span :style="{ color: project.is_required ? '#ff6600' : '#00a854' }">
+                {{ project.is_required ? '必修' : '选修' }}
+              </span>
+            </td>
+            <td>--</td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 8px">
+                <div style="flex: 1; height: 6px; background: #f0f0f0; border-radius: 3px">
+                  <div style="width: 0%; height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 3px"></div>
+                </div>
+                <span style="font-size: 13px; color: #667eea">--</span>
+              </div>
+            </td>
+            <td>{{ project.deadline ? formatDate(project.deadline) : '--' }}</td>
+            <td>
+              <span class="status-badge" :class="getStatusClass(project.status)">
+                {{ project.status_text }}
+              </span>
+            </td>
+            <td>
+              <a
+                href="javascript:void(0)"
+                style="color: #667eea; text-decoration: none"
+                @click="$router.push(`/hr/progress/${project.project_id}`)"
+              >
+                详情
+              </a>
+            </td>
+          </tr>
+          <tr v-if="projectList.length === 0 && !loading">
+            <td colspan="7" style="text-align: center; color: #999; padding: 40px">暂无数据</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useTrainingStore } from '@/stores/training'
-import { Reading, User, Clock, Warning, Plus, OfficeBuilding } from '@element-plus/icons-vue'
+import { getDashboardStats } from '@/api/auth'
 import dayjs from 'dayjs'
 
+const router = useRouter()
 const trainingStore = useTrainingStore()
 
+const loading = ref(false)
+const projectList = ref([])
 const stats = ref({
   projectCount: 0,
   employeeCount: 0,
-  ongoingCount: 0,
+  pendingCount: 0,
   completionRate: 0,
 })
 
-const recentProjects = ref([])
+const statsTrend = reactive({
+  projectChange: 0,
+  employeeChange: 0,
+  pendingChange: 0,
+  completionChange: 0,
+})
 
-function getStatusType(status) {
-  const types = { 0: 'info', 1: 'success', 2: 'warning', 3: 'info' }
-  return types[status] || 'info'
+const trendData = ref([60, 90, 75, 110, 95, 130, 100])
+
+function getStatusClass(status) {
+  const classMap = { 0: 'draft', 1: 'published', 2: 'unpublished' }
+  return classMap[status] || 'draft'
 }
 
 function formatDate(date) {
-  return dayjs(date).format('YYYY-MM-DD')
+  return date ? dayjs(date).format('YYYY-MM-DD') : '--'
+}
+
+async function fetchStats() {
+  try {
+    const res = await getDashboardStats()
+    if (res.code === 0) {
+      stats.value = {
+        projectCount: res.data.project_count || 0,
+        employeeCount: res.data.employee_count || 0,
+        pendingCount: res.data.pending_count || 0,
+        completionRate: res.data.completion_rate || 0,
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch stats:', error)
+  }
+}
+
+async function fetchProjectList() {
+  loading.value = true
+  try {
+    await trainingStore.fetchProjectList({ page: 1, page_size: 10, status: 1 })
+    projectList.value = trainingStore.projectList
+  } catch (error) {
+    console.error('Failed to fetch project list:', error)
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(async () => {
-  await trainingStore.fetchProjectList({ page: 1, page_size: 5 })
-
-  recentProjects.value = trainingStore.projectList
-
-  stats.value.projectCount = trainingStore.projectList.length
-  stats.value.ongoingCount = trainingStore.projectList.filter(
-    (p) => p.status === 1
-  ).length
-  stats.value.completionRate = Math.round((stats.value.ongoingCount / Math.max(stats.value.projectCount, 1)) * 100)
-  stats.value.employeeCount = 128 // TODO: Get from API
+  await fetchStats()
+  await fetchProjectList()
 })
 </script>
 
 <style scoped>
 .hr-dashboard {
-  max-width: 1200px;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
 }
 
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0 0 24px;
-}
-
-.stats-row {
-  margin-bottom: 20px;
+/* 统计卡片 */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 25px;
 }
 
 .stat-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
 }
 
-.stat-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
+.stat-card .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.stat-card .icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
   font-size: 24px;
 }
 
-.stat-value {
-  font-size: 28px;
-  font-weight: 600;
-  color: #303133;
+.stat-card .trend {
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 4px;
 }
 
-.stat-label {
+.stat-card .trend.up {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.stat-card .trend.down {
+  background: #fff1f0;
+  color: #ff4d4f;
+}
+
+.stat-card .value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.stat-card .label {
   font-size: 14px;
-  color: #909399;
+  color: #999;
+}
+
+/* 图表区域 */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  margin-bottom: 25px;
+}
+
+.chart-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.chart-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.chart-placeholder {
+  height: 200px;
+  background: linear-gradient(90deg, #f5f7fa 0%, #e6f0ff 100%);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 14px;
+}
+
+.chart-placeholder .bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  height: 150px;
+  margin-bottom: 10px;
+}
+
+.bar {
+  width: 30px;
+  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+  border-radius: 4px 4px 0 0;
+  animation: grow 1s ease-out;
+}
+
+@keyframes grow {
+  from {
+    height: 0;
+  }
 }
 
 .quick-actions {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
 }
 
-.quick-actions .el-button {
+.quick-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  background: #f8f8ff;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: none;
+  text-align: left;
+}
+
+.quick-btn:hover {
+  background: #e6f0ff;
+  transform: translateY(-2px);
+}
+
+.quick-btn .icon {
+  font-size: 24px;
+}
+
+.quick-btn .text {
+  font-size: 14px;
+  color: #333;
+}
+
+/* 数据列表 */
+.data-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.data-card .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.data-card .title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.data-card table {
   width: 100%;
-  justify-content: flex-start;
+  border-collapse: collapse;
+}
+
+.data-card th {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+  color: #999;
+  font-weight: 500;
+}
+
+.data-card td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #f5f7fa;
+  font-size: 14px;
+  color: #333;
+}
+
+.data-card tr:hover {
+  background: #f8f8ff;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.status-badge.published {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.status-badge.draft {
+  background: #f5f7fa;
+  color: #999;
+}
+
+.status-badge.unpublished {
+  background: #fff7e6;
+  color: #fa8c16;
+}
+
+.btn {
+  height: 36px;
+  padding: 0 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-outline {
+  background: #fff;
+  color: #667eea;
+  border: 1px solid #667eea;
+}
+
+.btn-outline:hover {
+  background: #f5f7ff;
 }
 </style>

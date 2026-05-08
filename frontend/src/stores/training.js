@@ -10,6 +10,8 @@ import {
   deleteProject,
   getProgress,
   updateProgress,
+  getProgressReport,
+  getProgressStats,
 } from '@/api/training'
 
 export const useTrainingStore = defineStore('training', () => {
@@ -87,6 +89,28 @@ export const useTrainingStore = defineStore('training', () => {
     }
   }
 
+  async function fetchProgressReport(projectId, params = {}) {
+    try {
+      const res = await getProgressReport(projectId, params)
+      if (res.code === 0) {
+        return res.data
+      }
+    } catch (error) {
+      console.error('Failed to fetch progress report:', error)
+    }
+  }
+
+  async function fetchProgressStats(projectId) {
+    try {
+      const res = await getProgressStats(projectId)
+      if (res.code === 0) {
+        return res.data
+      }
+    } catch (error) {
+      console.error('Failed to fetch progress stats:', error)
+    }
+  }
+
   async function create(projectData) {
     loading.value = true
     try {
@@ -148,6 +172,8 @@ export const useTrainingStore = defineStore('training', () => {
     fetchProjectDetail,
     fetchProgress,
     saveVideoProgress,
+    fetchProgressReport,
+    fetchProgressStats,
     create,
     update,
     publish,

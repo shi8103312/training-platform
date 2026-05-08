@@ -35,3 +35,18 @@ export function refreshToken(refreshToken) {
     },
   })
 }
+
+export function getDashboardStats() {
+  return request({
+    url: '/v1/user/stats/dashboard',
+    method: 'get',
+  })
+}
+
+export function getUserList(params) {
+  return request({
+    url: '/v1/user/list',
+    method: 'get',
+    params,
+  })
+}

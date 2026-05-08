@@ -1,104 +1,152 @@
 <template>
-  <el-container class="default-layout">
-    <el-header class="header">
+  <div class="employee-layout">
+    <!-- 顶部导航 -->
+    <header class="header">
       <div class="header-left">
-        <h1 class="logo">集团内部员工培训平台</h1>
+        <div class="logo">🏢 集团培训平台</div>
+        <nav class="nav-links">
+          <router-link to="/" :class="{ active: route.path === '/' }">我的学习</router-link>
+          <router-link to="/training" :class="{ active: route.path.startsWith('/training') }">全部培训</router-link>
+          <router-link to="/exam-history" :class="{ active: route.path === '/exam-history' }">我的考试</router-link>
+          <router-link to="/notification" :class="{ active: route.path === '/notification' }">通知中心</router-link>
+        </nav>
       </div>
       <div class="header-right">
-        <el-dropdown @command="handleCommand">
-          <span class="user-info">
-            <el-avatar :size="32" icon="User" />
-            <span class="username">{{ userStore.userInfo?.real_name }}</span>
-            <span class="role-tag" :type="userStore.isHrAdmin ? 'danger' : 'primary'">
-              {{ userStore.isHrAdmin ? 'HR管理员' : '员工' }}
-            </span>
-          </span>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="profile">个人中心</el-dropdown-item>
-              <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+        <el-badge :value="unreadCount" :max="99" class="notification-badge" v-if="unreadCount > 0">
+          <span class="notification-icon" @click="goToNotification">🔔</span>
+        </el-badge>
+        <span v-else class="notification-icon" @click="goToNotification">🔔</span>
+        <div class="user-info">
+          <div class="avatar">👤</div>
+          <span class="user-name">{{ userStore.userInfo?.real_name || '用户' }}</span>
+        </div>
+        <router-link v-if="userStore.isHrAdmin" to="/hr" class="hr-entry">
+          ⚙️ 后台管理
+        </router-link>
+        <button class="logout-btn" @click="handleLogout">
+          🚪 退出
+        </button>
       </div>
-    </el-header>
+    </header>
 
-    <el-container>
-      <el-aside width="200px" class="sidebar">
-        <el-menu :default-active="activeMenu" router class="sidebar-menu">
-          <el-menu-item index="/">
-            <el-icon><HomeFilled /></el-icon>
-            <span>首页</span>
-          </el-menu-item>
-          <el-menu-item index="/training">
-            <el-icon><Reading /></el-icon>
-            <span>培训项目</span>
-          </el-menu-item>
-          <el-menu-item v-if="userStore.isHrAdmin" index="/hr">
-            <el-icon><Setting /></el-icon>
-            <span>管理后台</span>
-          </el-menu-item>
-        </el-menu>
-      </el-aside>
-
-      <el-main class="main-content">
-        <router-view />
-      </el-main>
-    </el-container>
-  </el-container>
+    <!-- 主内容 -->
+    <main class="main-container">
+      <router-view />
+    </main>
+  </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { ElMessageBox } from 'element-plus'
+import { ElMessageBox, ElBadge } from 'element-plus'
+import { getMyNotifications } from '@/api/notification'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const unreadCount = ref(0)
 
-const activeMenu = computed(() => route.path)
+function goToNotification() {
+  router.push('/notification')
+}
 
-function handleCommand(command) {
-  if (command === 'logout') {
-    ElMessageBox.confirm('确定要退出登录吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }).then(() => {
-      userStore.logout()
-    })
-  } else if (command === 'profile') {
-    // TODO: Navigate to profile page
+async function fetchUnreadCount() {
+  try {
+    const res = await getMyNotifications({ page: 1, page_size: 100 })
+    if (res.code === 0) {
+      unreadCount.value = res.data.filter(n => n.read_status === 0).length
+    }
+  } catch (error) {
+    console.error('Failed to fetch notifications:', error)
   }
 }
+
+function handleLogout() {
+  ElMessageBox.confirm('确定退出登录吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  }).then(() => {
+    userStore.logout()
+    router.push('/login')
+  })
+}
+
+onMounted(() => {
+  fetchUnreadCount()
+})
 </script>
 
 <style scoped>
-.default-layout {
-  height: 100vh;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.employee-layout {
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  background: #f5f7fa;
+  min-height: 100vh;
 }
 
 .header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  padding: 0 30px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fff;
-  border-bottom: 1px solid #e4e7ed;
-  padding: 0 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
-.header-left .logo {
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+}
+
+.logo {
   font-size: 18px;
   font-weight: 600;
-  color: #303133;
-  margin: 0;
+}
+
+.nav-links {
+  display: flex;
+  gap: 25px;
+}
+
+.nav-links a {
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+  font-size: 14px;
+  padding: 8px 0;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s;
+}
+
+.nav-links a:hover,
+.nav-links a.active {
+  color: #fff;
+  border-bottom-color: #fff;
 }
 
 .header-right {
   display: flex;
   align-items: center;
+  gap: 20px;
+}
+
+.notification-badge {
+  cursor: pointer;
+}
+
+.notification-icon {
+  font-size: 20px;
+  cursor: pointer;
 }
 
 .user-info {
@@ -108,30 +156,58 @@ function handleCommand(command) {
   cursor: pointer;
 }
 
-.username {
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.user-name {
   font-size: 14px;
-  color: #606266;
 }
 
-.role-tag {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 4px;
+.hr-entry {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.3s;
+  margin-right: 10px;
 }
 
-.sidebar {
-  background: #f5f7fa;
-  border-right: 1px solid #e4e7ed;
+.hr-entry:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
 }
 
-.sidebar-menu {
-  border-right: none;
-  background: transparent;
+.logout-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  padding: 6px 16px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s;
 }
 
-.main-content {
-  background: #f5f7fa;
-  padding: 20px;
-  overflow-y: auto;
+.logout-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.main-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 30px;
 }
 </style>

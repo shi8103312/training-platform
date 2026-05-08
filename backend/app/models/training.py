@@ -231,4 +231,10 @@ class Comment(Base):
     project = relationship("Project", back_populates="comments")
     material = relationship("Material", foreign_keys=[material_id])
     user = relationship("User", back_populates="comments")
-    parent = relationship("Comment", remote_side=[comment_id], foreign_keys=[parent_id])
+    parent = relationship(
+        "Comment",
+        remote_side=[comment_id],
+        primaryjoin="Comment.comment_id == foreign(Comment.parent_id)",
+        backref="replies",
+        viewonly=True
+    )

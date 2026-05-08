@@ -2,10 +2,6 @@
   <div class="training-manage">
     <div class="header-actions">
       <h2 class="page-title">培训项目管理</h2>
-      <el-button type="primary" @click="$router.push('/hr/training/create')">
-        <el-icon><Plus /></el-icon>
-        创建培训项目
-      </el-button>
     </div>
 
     <el-card>

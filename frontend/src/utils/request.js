@@ -52,6 +52,9 @@ request.interceptors.response.use(
         case 404:
           ElMessage.error('资源不存在')
           break
+        case 422:
+          ElMessage.error('数据验证失败')
+          break
         case 429:
           ElMessage.error('请求过于频繁')
           break

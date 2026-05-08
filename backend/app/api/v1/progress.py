@@ -3,13 +3,15 @@ Learning Progress API Routes
 """
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
+import json
 
 from ...database import get_db
 from ...models.user import User
+from ...models.department import Department
 from ...models.training import Project, Material, WatchProgress, Progress
 from ...models.exam import Exam, ExamAttempt
 from ...api.deps import get_current_user, require_hr_admin
@@ -247,7 +249,8 @@ async def export_progress(
     db: Session = Depends(get_db),
 ):
     """
-    Export learning progress for HR.
+    Export learning progress for HR report.
+    Returns progress list with filtering by department and status.
     """
     # Get project
     project = db.query(Project).filter(
@@ -261,14 +264,271 @@ async def export_progress(
             "message": "项目不存在",
         }
 
-    # TODO: Implement full export with user filtering
+    # Get project materials
+    materials = db.query(Material).filter(
+        Material.project_id == project_id,
+        Material.is_deleted == 0,
+    ).all()
+    material_ids = [m.material_id for m in materials]
+    total_materials = len(materials)
+
+    # Build query for users who should see this project
+    # Based on push_scope: {"type": "all"} or {"type": "departments", "dept_ids": [...]} or {"type": "users", "user_ids": [...]}
+    push_scope = json.loads(project.push_scope) if isinstance(project.push_scope, str) else project.push_scope
+
+    user_query = db.query(User).filter(User.status == 1)  # Only active users
+
+    if push_scope.get("type") == "departments":
+        dept_ids = push_scope.get("dept_ids", [])
+        if dept_ids:
+            user_query = user_query.filter(User.dept_id.in_(dept_ids))
+    elif push_scope.get("type") == "users":
+        user_ids = push_scope.get("user_ids", [])
+        if user_ids:
+            user_query = user_query.filter(User.user_id.in_(user_ids))
+    # For "all" type, we don't filter by department
+
+    # Apply department filter
+    if dept_id:
+        user_query = user_query.filter(User.dept_id == dept_id)
+
+    # Get total count before pagination
+    total_employees = user_query.count()
+
+    # Apply pagination
+    offset = (page - 1) * page_size
+    users = user_query.offset(offset).limit(page_size).all()
+
+    # Get all user IDs
+    user_ids = [u.user_id for u in users]
+
+    # Get watch progress for all materials
+    watch_progress_map = {}
+    if material_ids and user_ids:
+        watch_records = db.query(WatchProgress).filter(
+            WatchProgress.material_id.in_(material_ids),
+            WatchProgress.user_id.in_(user_ids),
+        ).all()
+        for wp in watch_records:
+            if wp.user_id not in watch_progress_map:
+                watch_progress_map[wp.user_id] = {}
+            watch_progress_map[wp.user_id][wp.material_id] = wp
+
+    # Get exam attempts
+    exam = db.query(Exam).filter(Exam.project_id == project_id, Exam.is_deleted == 0).first()
+    exam_attempts_map = {}
+    if exam and user_ids:
+        attempts = db.query(ExamAttempt).filter(
+            ExamAttempt.exam_id == exam.exam_id,
+            ExamAttempt.user_id.in_(user_ids),
+        ).all()
+        # Get best score for each user
+        for a in attempts:
+            if a.user_id not in exam_attempts_map or (a.score and a.score > exam_attempts_map[a.user_id].score):
+                exam_attempts_map[a.user_id] = a
+
+    # Build result list
+    result_list = []
+    stats = {"total": 0, "completed": 0, "in_progress": 0, "not_started": 0}
+
+    for user in users:
+        user_wp = watch_progress_map.get(user.user_id, {})
+        completed_count = 0
+        total_progress = 0
+        total_time = 0
+
+        for m in materials:
+            wp = user_wp.get(m.material_id)
+            if wp:
+                if wp.is_completed:
+                    completed_count += 1
+                total_progress += wp.progress_percentage
+                total_time += wp.watched_seconds
+
+        # Calculate overall progress percentage
+        progress_pct = int(total_progress / total_materials) if total_materials > 0 else 0
+
+        # Determine status
+        if progress_pct == 0:
+            overall_status = 0  # Not started
+        elif progress_pct >= 100:
+            overall_status = 2  # Completed
+        else:
+            overall_status = 1  # In progress
+
+        # Apply status filter
+        if status is not None and overall_status != status:
+            continue
+
+        stats["total"] += 1
+        if overall_status == 2:
+            stats["completed"] += 1
+        elif overall_status == 1:
+            stats["in_progress"] += 1
+        else:
+            stats["not_started"] += 1
+
+        # Get exam score
+        exam_score = None
+        attempt = exam_attempts_map.get(user.user_id)
+        if attempt and attempt.score is not None:
+            exam_score = attempt.score
+
+        # Get department name
+        dept = db.query(Department).filter(Department.dept_id == user.dept_id).first()
+        dept_name = dept.dept_name if dept else ""
+
+        # Format learning time
+        if total_time > 0:
+            hours = total_time // 3600
+            minutes = (total_time % 3600) // 60
+            learning_time = f"{hours}小时{minutes}分" if hours > 0 else f"{minutes}分钟"
+        else:
+            learning_time = "0"
+
+        result_list.append({
+            "user_id": user.user_id,
+            "user_name": user.real_name,
+            "dept_id": user.dept_id,
+            "dept_name": dept_name,
+            "project_title": project.title,
+            "progress": progress_pct,
+            "learning_time": learning_time,
+            "exam_score": exam_score,
+            "status": overall_status,
+            "status_text": ["未开始", "进行中", "已完成"][overall_status],
+        })
+
+    # Get department list for filter
+    departments = db.query(Department).filter(Department.status == 1).all()
+
     return {
         "code": 0,
         "data": {
             "project_id": project_id,
             "project_title": project.title,
             "export_time": datetime.now().isoformat(),
-            "total_employees": 0,
-            "list": [],
+            "stats": stats,
+            "total_employees": total_employees,
+            "list": result_list,
+            "departments": [
+                {"dept_id": d.dept_id, "dept_name": d.dept_name}
+                for d in departments
+            ],
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total": total_employees,
+                "total_pages": (total_employees + page_size - 1) // page_size,
+            },
+        },
+    }
+
+
+@router.get("/hr/stats/{project_id}")
+async def get_progress_stats(
+    project_id: str,
+    current_user: User = Depends(require_hr_admin()),
+    db: Session = Depends(get_db),
+):
+    """
+    Get progress statistics for a project (for charts).
+    """
+    project = db.query(Project).filter(
+        Project.project_id == project_id,
+        Project.is_deleted == 0,
+    ).first()
+
+    if not project:
+        return {
+            "code": 20001,
+            "message": "项目不存在",
+        }
+
+    # Get project materials
+    materials = db.query(Material).filter(
+        Material.project_id == project_id,
+        Material.is_deleted == 0,
+    ).all()
+    material_ids = [m.material_id for m in materials]
+    total_materials = len(materials)
+
+    # Get push scope
+    push_scope = json.loads(project.push_scope) if isinstance(project.push_scope, str) else project.push_scope
+
+    user_query = db.query(User).filter(User.status == 1)
+
+    if push_scope.get("type") == "departments":
+        dept_ids = push_scope.get("dept_ids", [])
+        if dept_ids:
+            user_query = user_query.filter(User.dept_id.in_(dept_ids))
+    elif push_scope.get("type") == "users":
+        user_ids = push_scope.get("user_ids", [])
+        if user_ids:
+            user_query = user_query.filter(User.user_id.in_(user_ids))
+
+    users = user_query.all()
+    user_ids = [u.user_id for u in users]
+
+    # Get watch progress
+    watch_progress_map = {}
+    if material_ids and user_ids:
+        watch_records = db.query(WatchProgress).filter(
+            WatchProgress.material_id.in_(material_ids),
+            WatchProgress.user_id.in_(user_ids),
+        ).all()
+        for wp in watch_records:
+            if wp.user_id not in watch_progress_map:
+                watch_progress_map[wp.user_id] = {}
+            watch_progress_map[wp.user_id][wp.material_id] = wp
+
+    # Calculate stats
+    stats = {"total": len(users), "completed": 0, "in_progress": 0, "not_started": 0}
+    for user in users:
+        user_wp = watch_progress_map.get(user.user_id, {})
+        completed_count = 0
+        total_progress = 0
+
+        for m in materials:
+            wp = user_wp.get(m.material_id)
+            if wp:
+                if wp.is_completed:
+                    completed_count += 1
+                total_progress += wp.progress_percentage
+
+        progress_pct = int(total_progress / total_materials) if total_materials > 0 else 0
+
+        if progress_pct == 0:
+            stats["not_started"] += 1
+        elif progress_pct >= 100:
+            stats["completed"] += 1
+        else:
+            stats["in_progress"] += 1
+
+    # Calculate completion rate
+    completion_rate = int((stats["completed"] / stats["total"] * 100)) if stats["total"] > 0 else 0
+
+    # Get last 7 days trend
+    seven_days_ago = datetime.now() - timedelta(days=7)
+    recent_completions = db.query(WatchProgress).filter(
+        WatchProgress.material_id.in_(material_ids),
+        WatchProgress.is_completed == 1,
+        WatchProgress.completed_at >= seven_days_ago,
+    ).all()
+
+    # Group by date
+    trend = {i: 0 for i in range(7)}
+    for wc in recent_completions:
+        if wc.completed_at:
+            day_idx = (datetime.now() - wc.completed_at).days
+            if 0 <= day_idx < 7:
+                trend[6 - day_idx] += 1
+
+    return {
+        "code": 0,
+        "data": {
+            "stats": stats,
+            "completion_rate": completion_rate,
+            "trend": list(trend.values()),
         },
     }

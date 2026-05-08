@@ -160,35 +160,49 @@ function handleScopeTypeChange() {
 }
 
 async function handleSubmit() {
-  if (!formRef.value) return
+  console.log('handleSubmit called')
+  console.log('formRef:', formRef.value)
+  console.log('form:', form)
 
-  await formRef.value.validate(async (valid) => {
-    if (!valid) return
+  if (!formRef.value) {
+    ElMessage.error('表单初始化失败，请刷新重试')
+    return
+  }
 
-    loading.value = true
-    try {
-      const projectData = {
-        ...form,
-        deadline: form.deadline,
-      }
+  loading.value = true
 
-      let res
-      if (isEdit.value) {
-        res = await trainingStore.update(route.params.id, projectData)
-      } else {
-        res = await trainingStore.create(projectData)
-      }
+  try {
+    await formRef.value.validate()
+    console.log('Validation passed')
 
-      if (res.code === 0) {
-        ElMessage.success(isEdit.value ? '保存成功' : '创建成功')
-        router.push('/hr/training')
-      } else {
-        ElMessage.error(res.message || '操作失败')
-      }
-    } finally {
-      loading.value = false
+    const projectData = {
+      title: form.title,
+      description: form.description,
+      cover_image: form.cover_image,
+      deadline: form.deadline,
+      is_required: form.is_required,
+      push_scope: form.push_scope,
     }
-  })
+    console.log('projectData:', projectData)
+
+    const res = isEdit.value
+      ? await trainingStore.update(route.params.id, projectData)
+      : await trainingStore.create(projectData)
+
+    console.log('API response:', res)
+
+    if (res.code === 0) {
+      ElMessage.success(isEdit.value ? '保存成功' : '创建成功')
+      router.push('/hr/training')
+    } else {
+      ElMessage.error(res.message || '操作失败')
+    }
+  } catch (error) {
+    console.error('Submit failed:', error)
+    ElMessage.error(error.message || '提交失败，请检查表单')
+  } finally {
+    loading.value = false
+  }
 }
 
 async function fetchDepartmentTree() {

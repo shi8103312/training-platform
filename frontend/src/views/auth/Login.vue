@@ -1,54 +1,52 @@
 <template>
-  <div class="login-container">
-    <div class="login-box">
-      <div class="login-header">
-        <h2>集团内部员工培训平台</h2>
-        <p>请使用您的账号密码登录</p>
+  <div class="login-page">
+    <div class="login-container">
+      <div class="logo">
+        <h1>🏢 集团内部培训平台</h1>
+        <p>数字化学习 · 便捷培训管理</p>
       </div>
 
-      <el-form
-        ref="formRef"
-        :model="form"
-        :rules="rules"
-        class="login-form"
-        @submit.prevent="handleLogin"
+      <div class="form-item">
+        <label>用户名</label>
+        <input
+          type="text"
+          v-model="form.username"
+          placeholder="请输入工号或用户名"
+          @keyup.enter="handleLogin"
+        />
+      </div>
+
+      <div class="form-item">
+        <label>密码</label>
+        <input
+          type="password"
+          v-model="form.password"
+          placeholder="请输入密码"
+          @keyup.enter="handleLogin"
+        />
+      </div>
+
+      <div class="remember-row">
+        <label>
+          <input type="checkbox" v-model="rememberMe" />
+          记住登录状态
+        </label>
+        <a href="#" class="forgot-link">忘记密码？</a>
+      </div>
+
+      <button
+        class="login-btn"
+        @click="handleLogin"
+        :disabled="loading"
       >
-        <el-form-item prop="username">
-          <el-input
-            v-model="form.username"
-            placeholder="用户名"
-            size="large"
-            :prefix-icon="User"
-          />
-        </el-form-item>
+        {{ loading ? '登录中...' : '登 录' }}
+      </button>
 
-        <el-form-item prop="password">
-          <el-input
-            v-model="form.password"
-            type="password"
-            placeholder="密码"
-            size="large"
-            :prefix-icon="Lock"
-            show-password
-            @keyup.enter="handleLogin"
-          />
-        </el-form-item>
-
-        <el-form-item>
-          <el-button
-            type="primary"
-            size="large"
-            :loading="loading"
-            class="login-btn"
-            @click="handleLogin"
-          >
-            登录
-          </el-button>
-        </el-form-item>
-      </el-form>
-
-      <div class="login-footer">
-        <p>测试账号: admin / admin123</p>
+      <div class="demo-hint">
+        <strong>演示账号：</strong><br>
+        员工账号：emp001 / 密码123456<br>
+        HR管理员：hr001 / 密码123456<br>
+        <em>（根据账号自动识别角色）</em>
       </div>
     </div>
   </div>
@@ -58,102 +56,186 @@
 import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { User, Lock } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
-const formRef = ref(null)
 const loading = ref(false)
+const rememberMe = ref(false)
 
 const form = reactive({
   username: '',
   password: '',
 })
 
-const rules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
-}
-
 async function handleLogin() {
-  if (!formRef.value) return
+  if (!form.username || !form.password) {
+    ElMessage.warning('请输入用户名和密码')
+    return
+  }
 
-  await formRef.value.validate(async (valid) => {
-    if (!valid) return
+  loading.value = true
+  try {
+    const result = await userStore.login(form.username, form.password)
 
-    loading.value = true
-    try {
-      const result = await userStore.login(form.username, form.password)
-
-      if (result.success) {
-        ElMessage.success('登录成功')
-
-        // Redirect to original destination or default page
-        const redirect = route.query.redirect || (userStore.isHrAdmin ? '/hr' : '/')
-        router.push(redirect)
-      } else {
-        ElMessage.error(result.message || '登录失败')
-      }
-    } finally {
-      loading.value = false
+    if (result.success) {
+      ElMessage.success('登录成功')
+      const redirect = route.query.redirect || (userStore.isHrAdmin ? '/hr' : '/')
+      router.push(redirect)
+    } else {
+      ElMessage.error(result.message || '登录失败')
     }
-  })
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
 <style scoped>
-.login-container {
-  height: 100vh;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.login-page {
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-.login-box {
-  width: 400px;
-  padding: 40px;
+.login-container {
   background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 420px;
+  padding: 50px 40px;
 }
 
-.login-header {
+.logo {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 40px;
 }
 
-.login-header h2 {
+.logo h1 {
+  color: #333;
   font-size: 24px;
-  color: #303133;
-  margin: 0 0 10px;
+  font-weight: 600;
 }
 
-.login-header p {
+.logo p {
+  color: #666;
   font-size: 14px;
-  color: #909399;
-  margin: 0;
+  margin-top: 8px;
 }
 
-.login-form {
-  margin-top: 20px;
+.form-item {
+  margin-bottom: 24px;
+}
+
+.form-item label {
+  display: block;
+  color: #333;
+  font-size: 14px;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.form-item input {
+  width: 100%;
+  height: 44px;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  padding: 0 15px;
+  font-size: 14px;
+  transition: border-color 0.3s;
+}
+
+.form-item input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.remember-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.remember-row label {
+  display: flex;
+  align-items: center;
+  color: #666;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.remember-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+}
+
+.forgot-link {
+  color: #667eea;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.forgot-link:hover {
+  text-decoration: underline;
 }
 
 .login-btn {
   width: 100%;
+  height: 46px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.login-footer {
-  margin-top: 20px;
-  text-align: center;
+.login-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
 }
 
-.login-footer p {
+.login-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.demo-hint {
+  margin-top: 30px;
+  padding: 15px;
+  background: #f5f7fa;
+  border-radius: 6px;
   font-size: 12px;
-  color: #c0c4cc;
-  margin: 0;
+  color: #666;
+  text-align: left;
+}
+
+.demo-hint strong {
+  color: #333;
+}
+
+.demo-hint em {
+  color: #999;
+  font-size: 11px;
+  font-style: normal;
 }
 </style>

@@ -38,6 +38,16 @@ const routes = [
         name: 'ExamPage',
         component: () => import('@/views/employee/ExamPage.vue'),
       },
+      {
+        path: 'notification',
+        name: 'EmployeeNotification',
+        component: () => import('@/views/employee/Notification.vue'),
+      },
+      {
+        path: 'exam-history',
+        name: 'ExamHistory',
+        component: () => import('@/views/employee/ExamHistory.vue'),
+      },
     ],
   },
   {
@@ -81,9 +91,19 @@ const routes = [
         component: () => import('@/views/hr/DepartmentManage.vue'),
       },
       {
-        path: 'progress/:id',
+        path: 'progress',
         name: 'ProgressReport',
         component: () => import('@/views/hr/ProgressReport.vue'),
+      },
+      {
+        path: 'notification',
+        name: 'HrNotification',
+        component: () => import('@/views/hr/Notification.vue'),
+      },
+      {
+        path: 'settings',
+        name: 'HrSettings',
+        component: () => import('@/views/hr/Settings.vue'),
       },
     ],
   },

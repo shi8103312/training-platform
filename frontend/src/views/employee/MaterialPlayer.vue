@@ -55,6 +55,19 @@
           </div>
         </div>
         <iframe :src="documentSrc" class="document-frame" />
+        <div class="document-actions">
+          <el-button
+            v-if="!isCompleted"
+            type="primary"
+            @click="markDocumentAsRead"
+          >
+            我已阅读
+          </el-button>
+          <el-tag v-else type="success" size="large">
+            <el-icon><CircleCheck /></el-icon>
+            已完成
+          </el-tag>
+        </div>
       </div>
 
       <div v-else class="unsupported">
@@ -207,7 +220,13 @@ function startPlay() {
 async function saveProgress() {
   if (!material.value) return
 
-  const position = Math.floor(videoRef.value?.currentTime || 0)
+  // Only save progress for video materials
+  if (material.value.material_type !== 1) return
+
+  const videoEl = videoRef.value
+  if (!videoEl) return
+
+  const position = Math.floor(videoEl.currentTime || 0)
   if (position > maxAllowedPosition.value) {
     maxAllowedPosition.value = position
   }
@@ -222,6 +241,17 @@ async function saveProgress() {
   if (duration.value > 0 && maxAllowedPosition.value >= duration.value * 0.95) {
     isCompleted.value = true
   }
+}
+
+async function markDocumentAsRead() {
+  // For documents, mark as completed with a large position value
+  await trainingStore.saveVideoProgress(
+    route.params.materialId,
+    600,
+    600
+  )
+  isCompleted.value = true
+  ElMessage.success('已标记为已完成')
 }
 
 async function fetchPlayToken() {
@@ -406,6 +436,13 @@ video {
   width: 100%;
   height: 100%;
   border: none;
+}
+
+.document-actions {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10;
 }
 
 .completion-tip {

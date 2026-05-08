@@ -92,3 +92,18 @@ export function updateProgress(data) {
     data,
   })
 }
+
+export function getProgressReport(projectId, params) {
+  return request({
+    url: `/v1/training/progress/hr/${projectId}/export`,
+    method: 'get',
+    params,
+  })
+}
+
+export function getProgressStats(projectId) {
+  return request({
+    url: `/v1/training/progress/hr/stats/${projectId}`,
+    method: 'get',
+  })
+}
