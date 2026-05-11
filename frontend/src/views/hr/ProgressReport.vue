@@ -2,9 +2,6 @@
   <div class="progress-report">
     <div class="page-header">
       <span class="page-title">📈 学习报表</span>
-      <button class="btn btn-outline" @click="handleExport">
-        <span>📤</span> 导出报表
-      </button>
     </div>
 
     <!-- 筛选栏 -->
@@ -175,6 +172,8 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTrainingStore } from '@/stores/training'
 import { ElMessage } from 'element-plus'
+import * as XLSX from 'xlsx'
+import dayjs from 'dayjs'
 
 const route = useRoute()
 const router = useRouter()
@@ -249,6 +248,7 @@ async function fetchProjectList() {
   try {
     await trainingStore.fetchProjectList({ page: 1, page_size: 100 })
     projectList.value = trainingStore.projectList
+    console.log('[DEBUG] fetchProjectList:', projectList.value)
   } catch (error) {
     console.error('Failed to fetch project list:', error)
   }
@@ -265,9 +265,14 @@ async function fetchData() {
     if (filters.status !== '') params.status = filters.status
 
     const projectId = filters.projectId || route.params.id
-    if (!projectId) return
+    console.log('[DEBUG] fetchData projectId:', projectId, 'filters:', filters)
+    if (!projectId) {
+      console.log('[DEBUG] fetchData: no projectId, returning')
+      return
+    }
 
     const data = await trainingStore.fetchProgressReport(projectId, params)
+    console.log('[DEBUG] fetchData response:', data)
     if (data) {
       progressList.value = data.list || []
       departmentList.value = data.departments || []
@@ -301,11 +306,68 @@ async function fetchStats() {
 }
 
 function handleExport() {
-  ElMessage.info('导出报表功能开发中...')
+  if (progressList.value.length === 0) {
+    ElMessage.warning('暂无数据可导出')
+    return
+  }
+
+  try {
+    // 构建导出数据
+    const exportData = progressList.value.map(item => ({
+      '工号': item.user_id,
+      '姓名': item.user_name,
+      '部门': item.dept_name,
+      '培训项目': item.project_title,
+      '学习进度(%)': item.progress,
+      '学习时长': item.learning_time,
+      '考试分数': item.exam_score !== null ? item.exam_score + '分' : '--',
+      '完成状态': item.status_text,
+    }))
+
+    // 添加统计信息
+    const statsData = [
+      { '工号': '统计信息', '姓名': '', '部门': '', '培训项目': '', '学习进度(%)': '', '学习时长': '', '考试分数': '', '完成状态': '' },
+      { '工号': '应学人数', '姓名': stats.total, '部门': '', '培训项目': '', '学习进度(%)': '', '学习时长': '', '考试分数': '', '完成状态': '' },
+      { '工号': '已完成', '姓名': stats.completed, '部门': '', '培训项目': '', '学习进度(%)': '', '学习时长': '', '考试分数': '', '完成状态': '' },
+      { '工号': '进行中', '姓名': stats.inProgress, '部门': '', '培训项目': '', '学习进度(%)': '', '学习时长': '', '考试分数': '', '完成状态': '' },
+      { '工号': '未开始', '姓名': stats.notStarted, '部门': '', '培训项目': '', '学习进度(%)': '', '学习时长': '', '考试分数': '', '完成状态': '' },
+      { '工号': '完成率', '姓名': stats.completionRate + '%', '部门': '', '培训项目': '', '学习进度(%)': '', '学习时长': '', '考试分数': '', '完成状态': '' },
+    ]
+
+    const allData = [...statsData, {}, ...exportData]
+
+    // 创建工作簿和工作表
+    const ws = XLSX.utils.json_to_sheet(allData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '学习报表')
+
+    // 设置列宽
+    ws['!cols'] = [
+      { wch: 12 }, // 工号
+      { wch: 12 }, // 姓名
+      { wch: 15 }, // 部门
+      { wch: 25 }, // 培训项目
+      { wch: 15 }, // 学习进度
+      { wch: 12 }, // 学习时长
+      { wch: 12 }, // 考试分数
+      { wch: 12 }, // 完成状态
+    ]
+
+    // 生成文件名
+    const projectTitle = projectList.value.find(p => p.project_id === filters.projectId)?.title || '学习报表'
+    const filename = `${projectTitle}_学习报表_${dayjs().format('YYYY-MM-DD')}.xlsx`
+
+    // 下载文件
+    XLSX.writeFile(wb, filename)
+    ElMessage.success('导出成功')
+  } catch (error) {
+    console.error('Export error:', error)
+    ElMessage.error('导出失败')
+  }
 }
 
 function handleExportExcel() {
-  ElMessage.info('导出Excel功能开发中...')
+  handleExport()
 }
 
 onMounted(async () => {

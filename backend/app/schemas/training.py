@@ -159,6 +159,7 @@ class UpdateProgressRequest(BaseModel):
     material_id: str = Field(..., min_length=1)
     play_position: int = Field(..., ge=0)
     max_position: int = Field(..., ge=0)
+    total_watched_seconds: Optional[int] = Field(default=0, ge=0)
 
     @model_validator(mode="after")
     def check_positions(self):

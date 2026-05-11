@@ -184,7 +184,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onActivated, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTrainingStore } from '@/stores/training'
 import { ElMessage } from 'element-plus'
@@ -271,17 +271,40 @@ function formatDuration(seconds) {
 }
 
 function getMaterialProgress(material) {
-  return materialProgressMap.value[material.material_id]?.progress || 0
+  const data = materialProgressMap.value[material.material_id]
+  console.log('[DEBUG] getMaterialProgress:', material.material_id, 'data:', data)
+  // Return total_watched_seconds if available (actual watched time)
+  // Otherwise fall back to max_position (furthest position reached)
+  if (data?.total_watched_seconds > 0) {
+    console.log('[DEBUG] getMaterialProgress returning total_watched_seconds:', data.total_watched_seconds)
+    return data.total_watched_seconds
+  }
+  if (data?.max_position > 0) {
+    console.log('[DEBUG] getMaterialProgress returning max_position:', data.max_position)
+    return data.max_position
+  }
+  return data?.progress || 0
 }
 
 function isMaterialCompleted(material) {
-  return materialProgressMap.value[material.material_id]?.is_completed
+  const completed = materialProgressMap.value[material.material_id]?.is_completed
+  console.log('[DEBUG] isMaterialCompleted:', material.material_id, 'completed:', completed)
+  return completed
 }
 
 function getMaterialStatusClass(material) {
-  if (isMaterialCompleted(material)) return 'completed'
-  const progress = getMaterialProgress(material)
-  if (progress > 0) return 'in-progress'
+  const data = materialProgressMap.value[material.material_id]
+  console.log('[DEBUG] getMaterialStatusClass:', material.material_id, 'data:', data)
+  if (isMaterialCompleted(material)) {
+    console.log('[DEBUG] getMaterialStatusClass returning: completed')
+    return 'completed'
+  }
+  // Check max_position instead of progress, since progress may be 0 when total_duration is unknown
+  if (data?.max_position > 0) {
+    console.log('[DEBUG] getMaterialStatusClass returning: in-progress')
+    return 'in-progress'
+  }
+  console.log('[DEBUG] getMaterialStatusClass returning: not-start')
   return 'not-start'
 }
 
@@ -340,18 +363,47 @@ async function fetchProjectDetail() {
 async function fetchProgress() {
   try {
     const res = await trainingStore.fetchProgress(route.params.id)
-    if (res && res.data) {
-      userProgress.value = res.data.overall_status === 2 ? 100 : (res.data.overall_status === 1 ? 50 : 0)
+    console.log('[DEBUG] fetchProgress response:', res)
+    // trainingStore.fetchProgress returns res.data directly, so res is the data object
+    if (res && res.materials) {
+      // Calculate progress based on actual material completion
+      const totalMaterials = res.materials.length
+      let completedCount = 0
+      let totalProgress = 0
+
+      res.materials.forEach(m => {
+        if (m.is_completed) {
+          completedCount++
+          totalProgress += 100
+        } else if (m.max_position > 0) {
+          // Has progress but not completed - use progress percentage
+          totalProgress += (m.progress || 0)
+        }
+      })
+
+      // Calculate overall percentage
+      if (totalMaterials > 0) {
+        userProgress.value = Math.round(totalProgress / totalMaterials)
+      } else {
+        userProgress.value = 0
+      }
+      console.log('[DEBUG] userProgress calculated:', userProgress.value, 'completed:', completedCount, 'total:', totalMaterials)
 
       // Map material progress
       const progressMap = {}
-      ;(res.data.materials || []).forEach(m => {
+      ;(res.materials || []).forEach(m => {
+        console.log('[DEBUG] material progress:', m.material_id, 'progress:', m.progress, 'max_position:', m.max_position, 'total_watched:', m.total_watched_seconds)
         progressMap[m.material_id] = {
           progress: m.progress || 0,
           is_completed: m.is_completed || false,
+          max_position: m.max_position || 0,
+          total_watched_seconds: m.total_watched_seconds || 0,
         }
       })
       materialProgressMap.value = progressMap
+      console.log('[DEBUG] Updated progressMap:', progressMap)
+    } else {
+      console.log('[DEBUG] fetchProgress: no materials in response or invalid res:', res)
     }
   } catch (error) {
     console.error('Failed to fetch progress:', error)
@@ -370,7 +422,21 @@ function submitComment() {
 onMounted(async () => {
   await fetchProjectDetail()
   await fetchProgress()
+  console.log('[DEBUG] TrainingDetail mounted, progress:', materialProgressMap.value)
 })
+
+// Watch for route changes to refresh data when returning from video player
+watch(
+  () => route.path,
+  async (newPath, oldPath) => {
+    console.log('[DEBUG] Route changed:', oldPath, '->', newPath)
+    if (newPath.includes('/training/') && !newPath.includes('/material/')) {
+      console.log('[DEBUG] Detected return to training detail, refreshing project detail and progress')
+      await fetchProjectDetail()  // Refresh to get updated material durations
+      await fetchProgress()
+    }
+  }
+)
 </script>
 
 <style scoped>

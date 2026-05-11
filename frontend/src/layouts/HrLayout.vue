@@ -21,6 +21,10 @@
             <span class="icon">👥</span>
             <span>部门管理</span>
           </router-link>
+          <router-link to="/hr/employee" class="nav-item" :class="{ active: route.path === '/hr/employee' }">
+            <span class="icon">👔</span>
+            <span>员工管理</span>
+          </router-link>
           <router-link to="/hr/progress" class="nav-item" :class="{ active: route.path === '/hr/progress' }">
             <span class="icon">📈</span>
             <span>学习报表</span>
@@ -55,8 +59,7 @@
         <header class="top-header">
           <div class="page-title">{{ pageTitle }}</div>
           <div class="header-actions">
-            <button class="btn btn-outline" @click="exportData">📤 导出数据</button>
-            <button class="btn btn-primary" @click="createTraining">➕ 创建培训</button>
+            <button class="btn btn-outline" @click="goToEmployee">🏠 返回前台</button>
           </div>
         </header>
 
@@ -92,12 +95,8 @@ const pageTitle = computed(() => {
   return titles[route.path] || '工作台'
 })
 
-function exportData() {
-  // TODO: Implement export functionality
-}
-
-function createTraining() {
-  router.push('/hr/training/create')
+function goToEmployee() {
+  router.push('/employee')
 }
 
 function handleLogout() {
@@ -287,16 +286,6 @@ function handleLogout() {
   gap: 6px;
 }
 
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-}
-
 .btn-outline {
   background: #fff;
   color: #667eea;
@@ -305,20 +294,6 @@ function handleLogout() {
 
 .btn-outline:hover {
   background: #f5f7ff;
-}
-
-.btn-success {
-  background: #52c41a;
-  color: #fff;
-}
-
-.btn-success:hover {
-  background: #3cb520;
-}
-
-.btn-warning {
-  background: #fa8c16;
-  color: #fff;
 }
 
 .content {

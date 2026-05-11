@@ -11,7 +11,8 @@ from ...models.department import Department
 from ...models.training import Project, Progress
 from ...api.deps import get_current_user, require_hr_admin
 from ...core.permissions import Role
-from ...schemas.auth import UserInfo
+from ...core.security import hash_password
+from ...schemas.auth import UserInfo, UserCreate, UserUpdate
 
 router = APIRouter(prefix="/user", tags=["用户"])
 
@@ -151,3 +152,110 @@ async def get_user_list(
             "total_pages": (total + page_size - 1) // page_size,
         },
     }
+
+
+@router.post("")
+async def create_user(
+    user_data: UserCreate,
+    current_user: User = Depends(require_hr_admin()),
+    db: Session = Depends(get_db),
+):
+    """
+    Create a new user (HR admin only).
+    """
+    # Check if username already exists
+    existing = db.query(User).filter(User.username == user_data.username).first()
+    if existing:
+        return {"code": 13001, "message": "用户名已存在"}
+
+    # Validate department exists
+    if user_data.dept_id:
+        dept = db.query(Department).filter(Department.dept_id == user_data.dept_id).first()
+        if not dept:
+            return {"code": 13002, "message": "部门不存在"}
+
+    # Generate user_id
+    import uuid
+    user_id = f"U{uuid.uuid4().hex[:8].upper()}"
+
+    # Hash password
+    password_hash = hash_password(user_data.password)
+
+    # Create user
+    user = User(
+        user_id=user_id,
+        username=user_data.username,
+        password_hash=password_hash,
+        real_name=user_data.real_name,
+        email=user_data.email or f"{user_data.username}@example.com",
+        phone=user_data.phone,
+        dept_id=user_data.dept_id,
+        role=user_data.role,
+        status=user_data.status,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return {"code": 0, "data": {"user_id": user.user_id}}
+
+
+@router.put("/{user_id}")
+async def update_user(
+    user_id: str,
+    user_data: UserUpdate,
+    current_user: User = Depends(require_hr_admin()),
+    db: Session = Depends(get_db),
+):
+    """
+    Update a user (HR admin only).
+    """
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        return {"code": 13003, "message": "用户不存在"}
+
+    # Update fields
+    if user_data.real_name is not None:
+        user.real_name = user_data.real_name
+    if user_data.email is not None:
+        user.email = user_data.email
+    if user_data.phone is not None:
+        user.phone = user_data.phone
+    if user_data.dept_id is not None:
+        if user_data.dept_id:
+            dept = db.query(Department).filter(Department.dept_id == user_data.dept_id).first()
+            if not dept:
+                return {"code": 13002, "message": "部门不存在"}
+        user.dept_id = user_data.dept_id
+    if user_data.role is not None:
+        user.role = user_data.role
+    if user_data.status is not None:
+        user.status = user_data.status
+    if user_data.password is not None:
+        from passlib.context import CryptContext
+        user.password_hash = hash_password(user_data.password)
+
+    db.commit()
+    return {"code": 0, "message": "更新成功"}
+
+
+@router.delete("/{user_id}")
+async def delete_user(
+    user_id: str,
+    current_user: User = Depends(require_hr_admin()),
+    db: Session = Depends(get_db),
+):
+    """
+    Delete a user (HR admin only).
+    """
+    if user_id == current_user.user_id:
+        return {"code": 13004, "message": "不能删除自己"}
+
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        return {"code": 13003, "message": "用户不存在"}
+
+    # Soft delete - set status to 0
+    user.status = 0
+    db.commit()
+    return {"code": 0, "message": "删除成功"}

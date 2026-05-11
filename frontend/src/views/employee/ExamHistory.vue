@@ -1,6 +1,9 @@
 <template>
   <div class="exam-history-page">
-    <h1 class="page-title">📝 考试历史</h1>
+    <div class="page-header">
+      <h1 class="page-title">📝 考试历史</h1>
+      <button class="btn btn-primary" @click="handleExport">导出记录</button>
+    </div>
 
     <!-- 标签栏 -->
     <div class="tab-bar">
@@ -104,7 +107,9 @@
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { getExamHistory } from '@/api/exam'
+import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
+import * as XLSX from 'xlsx'
 
 const router = useRouter()
 
@@ -188,6 +193,44 @@ function handleNextPage() {
   }
 }
 
+function handleExport() {
+  if (history.value.length === 0) {
+    ElMessage.warning('暂无数据可导出')
+    return
+  }
+
+  try {
+    const exportData = history.value.map(item => ({
+      '考试标题': item.exam_title,
+      '考试时间': formatTime(item.start_time),
+      '用时': formatDuration(item.time_spent),
+      '得分': item.score !== null ? item.score + '分' : '--',
+      '及格分数': item.passing_score ? item.passing_score + '分' : '--',
+      '状态': item.passed ? '通过' : '未通过',
+    }))
+
+    const ws = XLSX.utils.json_to_sheet(exportData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '考试记录')
+
+    ws['!cols'] = [
+      { wch: 25 }, // 考试标题
+      { wch: 20 }, // 考试时间
+      { wch: 12 }, // 用时
+      { wch: 10 }, // 得分
+      { wch: 10 }, // 及格分数
+      { wch: 10 }, // 状态
+    ]
+
+    const filename = `考试记录_${dayjs().format('YYYY-MM-DD')}.xlsx`
+    XLSX.writeFile(wb, filename)
+    ElMessage.success('导出成功')
+  } catch (error) {
+    console.error('Export error:', error)
+    ElMessage.error('导出失败')
+  }
+}
+
 onMounted(() => {
   fetchHistory()
 })
@@ -196,6 +239,13 @@ onMounted(() => {
 <style scoped>
 .exam-history-page {
   max-width: 900px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
 }
 
 .page-title {

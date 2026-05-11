@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { ElMessage } from 'element-plus'
 
 const routes = [
   {
@@ -91,6 +92,11 @@ const routes = [
         component: () => import('@/views/hr/DepartmentManage.vue'),
       },
       {
+        path: 'employee',
+        name: 'EmployeeManage',
+        component: () => import('@/views/hr/EmployeeManage.vue'),
+      },
+      {
         path: 'progress',
         name: 'ProgressReport',
         component: () => import('@/views/hr/ProgressReport.vue'),
@@ -114,13 +120,36 @@ const router = createRouter({
   routes,
 })
 
+// Helper function to check if token is expired
+function isTokenExpired(token) {
+  if (!token) return true
+  try {
+    const payload = token.split('.')[1]
+    const decoded = JSON.parse(atob(payload))
+    const now = Math.floor(Date.now() / 1000)
+    return decoded.exp < now
+  } catch {
+    return true
+  }
+}
+
 // Navigation guard
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
 
-  if (to.meta.requiresAuth && !userStore.isLoggedIn) {
-    next({ name: 'Login', query: { redirect: to.fullPath } })
-    return
+  if (to.meta.requiresAuth) {
+    const token = localStorage.getItem('token')
+
+    if (!token || isTokenExpired(token)) {
+      // Token expired or missing - redirect to login
+      localStorage.removeItem('token')
+      localStorage.removeItem('refreshToken')
+      userStore.token = ''
+      userStore.userInfo = null
+      ElMessage({ message: '登录已过期，请重新登录', type: 'warning' })
+      next({ name: 'Login', query: { redirect: to.fullPath } })
+      return
+    }
   }
 
   if (to.meta.requiresHr && !userStore.isHrAdmin) {
@@ -128,7 +157,7 @@ router.beforeEach((to, from, next) => {
     return
   }
 
-  if (to.name === 'Login' && userStore.isLoggedIn) {
+  if (to.name === 'Login' && localStorage.getItem('token') && !isTokenExpired(localStorage.getItem('token'))) {
     next(userStore.isHrAdmin ? '/hr' : '/')
     return
   }

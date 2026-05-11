@@ -127,9 +127,10 @@ class WatchProgress(Base):
     material_id = Column(
         VARCHAR(32), ForeignKey("tra_material.material_id"), nullable=False, comment="Material ID"
     )
-    watched_seconds = Column(INT, nullable=False, default=0, comment="Watched seconds")
+    watched_seconds = Column(INT, nullable=False, default=0, comment="Watched seconds (current position)")
     max_position = Column(INT, nullable=False, default=0, comment="Maximum position reached")
     total_duration = Column(INT, nullable=False, default=0, comment="Total material duration")
+    total_watched_seconds = Column(INT, nullable=False, default=0, comment="Total accumulated watch time")
     is_completed = Column(
         TINYINT, nullable=False, default=0, comment="Is completed: 0=Not completed, 1=Completed"
     )
@@ -149,9 +150,13 @@ class WatchProgress(Base):
 
     @property
     def progress_percentage(self) -> int:
-        if self.total_duration == 0:
-            return 0
-        return int((self.max_position / self.total_duration) * 100)
+        # Use total_duration if set, otherwise fall back to material.duration
+        duration = self.total_duration or (self.material.duration if self.material else 0)
+        if duration == 0:
+            # Fallback: use max_position directly as percentage (max 100)
+            # This happens for videos uploaded before duration extraction was implemented
+            return min(self.max_position, 100)
+        return int((self.max_position / duration) * 100)
 
 
 class Progress(Base):

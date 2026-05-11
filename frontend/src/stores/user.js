@@ -8,7 +8,20 @@ export const useUserStore = defineStore('user', () => {
   const userInfo = ref(null)
   const loading = ref(false)
 
-  const isLoggedIn = computed(() => !!token.value)
+  // Decode JWT token to check expiration
+  const isTokenExpired = computed(() => {
+    if (!token.value) return true
+    try {
+      const payload = token.value.split('.')[1]
+      const decoded = JSON.parse(atob(payload))
+      const now = Math.floor(Date.now() / 1000)
+      return decoded.exp < now
+    } catch {
+      return true // If can't decode, consider it expired
+    }
+  })
+
+  const isLoggedIn = computed(() => !!token.value && !isTokenExpired.value)
   const isHrAdmin = computed(() => userInfo.value?.role === 1)
 
   async function checkAuth() {
@@ -74,6 +87,7 @@ export const useUserStore = defineStore('user', () => {
     loading,
     isLoggedIn,
     isHrAdmin,
+    isTokenExpired,
     checkAuth,
     fetchUserInfo,
     login,

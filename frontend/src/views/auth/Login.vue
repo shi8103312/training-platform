@@ -42,12 +42,7 @@
         {{ loading ? '登录中...' : '登 录' }}
       </button>
 
-      <div class="demo-hint">
-        <strong>演示账号：</strong><br>
-        员工账号：emp001 / 密码123456<br>
-        HR管理员：hr001 / 密码123456<br>
-        <em>（根据账号自动识别角色）</em>
-      </div>
+     
     </div>
   </div>
 </template>

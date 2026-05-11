@@ -1,12 +1,14 @@
 """
 Training Material API Routes
 """
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, Depends, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 import uuid
 import os
 import aiofiles
+import subprocess
+import json
 from datetime import datetime
 
 from ...database import get_db
@@ -21,6 +23,26 @@ router = APIRouter(prefix="/training/material", tags=["培训材料"])
 
 ALLOWED_VIDEO_EXTENSIONS = {"mp4", "avi", "mov", "wmv"}
 ALLOWED_DOCUMENT_EXTENSIONS = {"pdf", "doc", "docx"}
+
+
+async def get_video_duration(file_path: str) -> int:
+    """Extract video duration in seconds using ffprobe."""
+    try:
+        cmd = [
+            "ffprobe",
+            "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "json",
+            file_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+            duration = float(data.get("format", {}).get("duration", 0))
+            return int(duration)
+    except Exception as e:
+        print(f"Error extracting video duration: {e}")
+    return 0
 
 
 @router.post("/upload")
@@ -99,10 +121,10 @@ async def upload_material(
     async with aiofiles.open(local_path, "wb") as f:
         await f.write(content)
 
-    # Get duration for video (simplified - in production would use ffprobe)
+    # Get duration for video using ffprobe
     duration = None
     if material_type == 1:
-        duration = 0  # TODO: Extract actual duration
+        duration = await get_video_duration(local_path)
 
     # Generate encryption key for video
     encryption_key = None
@@ -200,10 +222,44 @@ async def get_play_token(
     return {
         "code": 0,
         "data": {
-            "play_url": material.storage_path,  # In production, this would be a signed CDN URL
+            "play_url": material.storage_path,  # This is the storage path, will be prefixed with /uploads/ on frontend
             "token": token,
             "token_expires_at": expires_at.isoformat(),
         },
+    }
+
+
+@router.put("/{material_id}/duration")
+async def update_material_duration(
+    material_id: str,
+    duration: int = Query(..., ge=0),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Update video material duration.
+    Called when video metadata is loaded to save actual duration.
+    """
+    material = db.query(Material).filter(
+        Material.material_id == material_id,
+        Material.is_deleted == 0,
+    ).first()
+
+    if not material:
+        return {
+            "code": 30001,
+            "message": "材料不存在",
+        }
+
+    # Only update if current duration is 0 or smaller
+    if material.duration is None or material.duration == 0 or duration < material.duration:
+        material.duration = duration
+        db.commit()
+        print(f"[DEBUG] Updated material {material_id} duration to {duration}")
+
+    return {
+        "code": 0,
+        "message": "时长已更新",
     }
 
 

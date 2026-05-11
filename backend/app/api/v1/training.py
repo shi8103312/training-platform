@@ -166,6 +166,7 @@ async def get_project_detail(
                     "duration": m.duration,
                     "thumbnail": m.thumbnail_path,
                     "sort_order": m.sort_order,
+                    "storage_path": m.storage_path,
                 }
                 for m in materials
             ],

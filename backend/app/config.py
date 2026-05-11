@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     ALLOWED_DOCUMENT_EXTENSIONS: list = ["pdf", "doc", "docx"]
 
     # CORS
-    CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:3000"]
+    CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176", "http://localhost:5177", "http://localhost:5178", "http://localhost:5179", "http://localhost:5180", "http://localhost:3000"]
 
     class Config:
         env_file = ".env"

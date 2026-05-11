@@ -13,7 +13,7 @@
       </div>
 
       <!-- Video Player -->
-      <div v-if="material?.material_type === 1" class="video-container">
+      <div v-if="material?.material_type === 1 && videoSrc" ref="videoContainerRef" class="video-container">
         <video
           ref="videoRef"
           :src="videoSrc"
@@ -38,12 +38,17 @@
               {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
             </span>
           </div>
+
+          <div class="fullscreen-btn" @click="toggleFullscreen">
+            <el-icon><FullScreen /></el-icon>
+          </div>
         </div>
 
         <div v-if="showResumePrompt" class="resume-prompt">
-          <p>是否从 {{ formatTime(lastPosition) }} 位置继续播放？</p>
-          <el-button type="primary" size="small" @click="resumePlay">继续</el-button>
-          <el-button size="small" @click="startPlay">从头开始</el-button>
+          <p v-if="isCompleted">已学习完毕，可以重新观看</p>
+          <p v-else>学习进度：{{ formatTime(lastPosition) }}，点击继续观看</p>
+          <el-button type="primary" size="small" @click="resumePlay">继续播放</el-button>
+          <el-button v-if="isCompleted" size="small" @click="startPlay">重新开始</el-button>
         </div>
       </div>
 
@@ -83,16 +88,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useTrainingStore } from '@/stores/training'
-import { getPlayToken } from '@/api/training'
+import { getPlayToken, updateMaterialDuration } from '@/api/training'
 import {
   ArrowLeft,
   VideoPlay,
   VideoPause,
   CircleCheck,
+  FullScreen,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
@@ -103,6 +109,7 @@ const userStore = useUserStore()
 const trainingStore = useTrainingStore()
 
 const videoRef = ref(null)
+const videoContainerRef = ref(null)
 const material = ref(null)
 const videoSrc = ref('')
 const documentSrc = ref('')
@@ -114,6 +121,16 @@ const lastPosition = ref(0)
 const showResumePrompt = ref(false)
 const isCompleted = ref(false)
 const progressTimer = ref(null)
+
+// Session watch tracking
+const sessionStartTime = ref(0)  // Timestamp when current session started
+const sessionStartPosition = ref(0)  // Position when current session started
+const totalWatchedSeconds = ref(0)    // Total watched seconds in current session
+
+// Debug: watch isPlaying changes
+watch(isPlaying, (newVal, oldVal) => {
+  console.log('[DEBUG] isPlaying changed:', oldVal, '->', newVal)
+})
 
 const watchedPercent = computed(() => {
   if (duration.value === 0) return 0
@@ -137,15 +154,38 @@ function formatTime(seconds) {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
-function togglePlay() {
+async function togglePlay() {
+  console.log('[DEBUG] togglePlay called, isPlaying:', isPlaying.value)
   if (!videoRef.value) return
 
   if (isPlaying.value) {
+    console.log('[DEBUG] togglePlay: pausing')
     videoRef.value.pause()
+    // Save progress when paused
+    saveProgress()
+    router.back()
   } else {
-    videoRef.value.play()
+    // If resume prompt is shown, call resumePlay
+    if (showResumePrompt.value) {
+      console.log('[DEBUG] togglePlay: resuming from prompt')
+      resumePlay()
+      return
+    } else {
+      console.log('[DEBUG] togglePlay: starting fresh')
+      videoRef.value.play()
+    }
+    isPlaying.value = !isPlaying.value
   }
-  isPlaying.value = !isPlaying.value
+}
+
+function toggleFullscreen() {
+  if (!videoContainerRef.value) return
+
+  if (document.fullscreenElement) {
+    document.exitFullscreen()
+  } else {
+    videoContainerRef.value.requestFullscreen()
+  }
 }
 
 function handleProgressClick(e) {
@@ -166,12 +206,36 @@ function handleTimeUpdate() {
 
   currentTime.value = videoRef.value.currentTime
 
-  // Prevent seeking beyond max position (anti-cheat)
-  if (currentTime.value > maxAllowedPosition.value + 5) {
-    videoRef.value.currentTime = maxAllowedPosition.value
+  // Track session watch time using timestamps
+  if (isPlaying.value) {
+    const now = Date.now()
+    if (sessionStartTime.value > 0) {
+      const elapsedSeconds = (now - sessionStartTime.value) / 1000
+      // Only count forward progress (user watching forward, not rewinding)
+      if (currentTime.value > sessionStartPosition.value) {
+        totalWatchedSeconds.value += elapsedSeconds
+      }
+    }
+    sessionStartTime.value = now
+    sessionStartPosition.value = currentTime.value
   }
 
-  // Save progress every 10 seconds
+  // Anti-cheat: if not completed, only allow watching current position + small buffer
+  // User must watch continuously without skipping
+  if (!isCompleted.value && maxAllowedPosition.value >= 0) {
+    const buffer = 5 // Allow 5 seconds buffer
+    if (currentTime.value > maxAllowedPosition.value + buffer) {
+      console.log('[DEBUG] Anti-cheat: skipping prevented, resetting to:', maxAllowedPosition.value)
+      videoRef.value.currentTime = maxAllowedPosition.value
+      currentTime.value = maxAllowedPosition.value
+    }
+    // Update maxAllowed to track progress (only forward)
+    if (currentTime.value > maxAllowedPosition.value) {
+      maxAllowedPosition.value = currentTime.value
+    }
+  }
+
+  // Save progress periodically
   if (progressTimer.value) clearTimeout(progressTimer.value)
   progressTimer.value = setTimeout(() => {
     saveProgress()
@@ -179,7 +243,10 @@ function handleTimeUpdate() {
 }
 
 function handleEnded() {
+  console.log('[DEBUG] handleEnded: video ended')
   isPlaying.value = false
+  // Video completed - mark as done and save
+  isCompleted.value = true
   saveProgress()
 }
 
@@ -187,59 +254,100 @@ function handleLoadedMetadata() {
   if (!videoRef.value) return
 
   duration.value = videoRef.value.duration
+  console.log('[DEBUG] Metadata loaded, duration:', duration.value)
 
-  // Check for resume prompt
+  // Update material duration in backend if it's 0
+  if (material.value && material.value.duration === 0 && duration.value > 0) {
+    console.log('[DEBUG] Updating material duration to backend:', Math.floor(duration.value))
+    updateMaterialDuration(route.params.materialId, Math.floor(duration.value)).catch(err => {
+      console.error('Failed to update material duration:', err)
+    })
+  }
+
+  // Check if already completed
   const progress = trainingStore.progress[route.params.materialId]
-  if (progress && progress.max_position > 0) {
-    lastPosition.value = progress.max_position
+  console.log('[DEBUG] Progress data from store:', progress)
+  if (progress && progress.is_completed) {
+    // Already completed - allow re-watch from any position
+    isCompleted.value = true
+    lastPosition.value = progress.max_position || 0
     showResumePrompt.value = true
-    isCompleted.value = progress.is_completed
+    console.log('[DEBUG] Video already completed, allowing re-watch')
+  } else if (progress && progress.max_position > 0) {
+    // Not completed yet - must continue from last position (cannot restart)
+    isCompleted.value = false
+    lastPosition.value = progress.max_position || 0
+    showResumePrompt.value = true
+    console.log('[DEBUG] Video not completed, must continue from:', lastPosition.value)
+  } else {
+    // No progress at all - fresh start
+    isCompleted.value = false
+    lastPosition.value = 0
+    showResumePrompt.value = true
+    console.log('[DEBUG] Fresh start')
   }
 }
 
 function resumePlay() {
   if (!videoRef.value) return
 
+  // Continue from last position
+  console.log('[DEBUG] resumePlay: continuing from:', lastPosition.value)
   videoRef.value.currentTime = lastPosition.value
-  maxAllowedPosition.value = lastPosition.value
+  maxAllowedPosition.value = lastPosition.value  // Must watch continuously from here
+  sessionStartTime.value = Date.now()  // Track session start time
+  sessionStartPosition.value = lastPosition.value  // Track session start position
+  totalWatchedSeconds.value = 0  // Reset session watch time
   showResumePrompt.value = false
   videoRef.value.play()
   isPlaying.value = true
+  currentTime.value = videoRef.value.currentTime
 }
 
 function startPlay() {
   if (!videoRef.value) return
 
-  videoRef.value.currentTime = 0
-  maxAllowedPosition.value = 0
+  if (isCompleted.value) {
+    // Completed video - can start from beginning for re-watch
+    console.log('[DEBUG] startPlay: re-watching from beginning')
+    videoRef.value.currentTime = 0
+    maxAllowedPosition.value = 0
+    sessionStartTime.value = Date.now()
+    sessionStartPosition.value = 0
+    totalWatchedSeconds.value = 0
+  } else {
+    // Not completed - must continue from last position
+    console.log('[DEBUG] startPlay: not completed, resuming from:', lastPosition.value)
+    videoRef.value.currentTime = lastPosition.value
+    maxAllowedPosition.value = lastPosition.value
+    sessionStartTime.value = Date.now()
+    sessionStartPosition.value = lastPosition.value
+    totalWatchedSeconds.value = 0
+  }
   showResumePrompt.value = false
   videoRef.value.play()
   isPlaying.value = true
+  currentTime.value = videoRef.value.currentTime
 }
 
 async function saveProgress() {
-  if (!material.value) return
-
-  // Only save progress for video materials
-  if (material.value.material_type !== 1) return
+  if (!material.value || material.value.material_type !== 1) return
+  if (!videoRef.value) return
 
   const videoEl = videoRef.value
-  if (!videoEl) return
-
   const position = Math.floor(videoEl.currentTime || 0)
-  if (position > maxAllowedPosition.value) {
-    maxAllowedPosition.value = position
-  }
+  const maxPos = Math.floor(videoEl.currentTime || 0)
 
-  await trainingStore.saveVideoProgress(
-    route.params.materialId,
-    position,
-    maxAllowedPosition.value
-  )
-
-  // Check completion (95%)
-  if (duration.value > 0 && maxAllowedPosition.value >= duration.value * 0.95) {
-    isCompleted.value = true
+  console.log('[DEBUG] saveProgress: position:', position, 'max:', maxPos, 'totalWatched:', Math.floor(totalWatchedSeconds.value), 'isCompleted:', isCompleted.value)
+  try {
+    await trainingStore.saveVideoProgress(
+      route.params.materialId,
+      position,
+      maxPos,
+      Math.floor(totalWatchedSeconds.value)
+    )
+  } catch (err) {
+    console.error('[DEBUG] saveProgress: error:', err)
   }
 }
 
@@ -260,7 +368,8 @@ async function fetchPlayToken() {
   try {
     const res = await getPlayToken(materialId)
     if (res.code === 0) {
-      videoSrc.value = res.data.play_url
+      // Construct full URL for video playback - use window.location.origin which goes through vite proxy
+      videoSrc.value = window.location.origin + '/uploads/' + res.data.play_url
       // TODO: Use token for authenticated playback
     }
   } catch (error) {
@@ -277,14 +386,19 @@ onMounted(async () => {
 
   if (material.value?.material_type === 1) {
     await fetchPlayToken()
+  } else if (material.value?.material_type === 2) {
+    // For documents, construct URL directly from storage path
+    const baseUrl = window.location.origin
+    documentSrc.value = baseUrl + '/uploads/' + material.value.storage_path
   }
 
   await trainingStore.fetchProgress(projectId)
 })
 
 onUnmounted(() => {
+  console.log('[DEBUG] onUnmounted called')
   if (progressTimer.value) clearTimeout(progressTimer.value)
-  saveProgress()
+  // Note: saveProgress is already called in togglePlay when user pauses
 })
 </script>
 
@@ -321,6 +435,23 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
+.video-container:fullscreen {
+  border-radius: 0;
+}
+
+.video-container:fullscreen video {
+  width: 100vw;
+  height: 100vh;
+}
+
+.video-container:fullscreen .video-controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 24px;
+}
+
 video {
   width: 100%;
   display: block;
@@ -348,6 +479,21 @@ video {
 
 .play-btn:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+.fullscreen-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 20px;
+  margin-left: 16px;
+}
+
+.fullscreen-btn:hover {
+  opacity: 0.8;
 }
 
 .progress-bar {

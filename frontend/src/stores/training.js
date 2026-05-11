@@ -51,7 +51,9 @@ export const useTrainingStore = defineStore('training', () => {
 
   async function fetchProgress(projectId) {
     try {
+      console.log('[DEBUG Store] fetchProgress called with projectId:', projectId)
       const res = await getProgress(projectId)
+      console.log('[DEBUG Store] getProgress response:', res)
       if (res.code === 0) {
         // Build progress map
         const progressMap = {}
@@ -59,6 +61,8 @@ export const useTrainingStore = defineStore('training', () => {
           progressMap[m.material_id] = m
         })
         progress.value = progressMap
+        console.log('[DEBUG Store] progress.value after fetch:', JSON.parse(JSON.stringify(progress.value)))
+        console.log('[DEBUG Store] returning res.data:', res.data)
         return res.data
       }
     } catch (error) {
@@ -66,24 +70,30 @@ export const useTrainingStore = defineStore('training', () => {
     }
   }
 
-  async function saveVideoProgress(materialId, playPosition, maxPosition) {
+  async function saveVideoProgress(materialId, playPosition, maxPosition, totalWatchedSeconds = 0) {
     try {
-      await updateProgress({
+      console.log('[DEBUG Store] saveVideoProgress called:', { materialId, playPosition, maxPosition, totalWatchedSeconds })
+      const res = await updateProgress({
         material_id: materialId,
         play_position: playPosition,
         max_position: maxPosition,
+        total_watched_seconds: totalWatchedSeconds,
       })
+      console.log('[DEBUG Store] updateProgress response:', res)
 
       // Update local state
       if (!progress.value[materialId]) {
         progress.value[materialId] = {
           watched_seconds: 0,
           max_position: 0,
+          total_watched_seconds: 0,
           is_completed: false,
         }
       }
       progress.value[materialId].watched_seconds = playPosition
       progress.value[materialId].max_position = maxPosition
+      progress.value[materialId].total_watched_seconds = (progress.value[materialId].total_watched_seconds || 0) + totalWatchedSeconds
+      console.log('[DEBUG Store] progress.value updated:', progress.value)
     } catch (error) {
       console.error('Failed to save progress:', error)
     }

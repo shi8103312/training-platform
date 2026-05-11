@@ -95,7 +95,10 @@
 
     <!-- 发送历史 -->
     <div class="recent-history">
-      <h3 style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 15px">📋 最近发送记录</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px">
+        <h3 style="font-size: 16px; font-weight: 600; color: #333; margin: 0">📋 最近发送记录</h3>
+        <el-button size="small" @click="handleExportHistory">导出记录</el-button>
+      </div>
       <div class="form-card" style="padding: 0">
         <table class="history-table">
           <thead>
@@ -137,6 +140,7 @@ import { getDepartmentList } from '@/api/department'
 import { getUserList } from '@/api/auth'
 import { sendNotification, getNotificationHistory } from '@/api/notification'
 import dayjs from 'dayjs'
+import * as XLSX from 'xlsx'
 
 const trainingStore = useTrainingStore()
 
@@ -257,6 +261,44 @@ async function handleSend() {
   } catch (error) {
     ElMessage.error('发送失败')
     console.error('Failed to send notification:', error)
+  }
+}
+
+function handleExportHistory() {
+  if (history.value.length === 0) {
+    ElMessage.warning('暂无数据可导出')
+    return
+  }
+
+  try {
+    const exportData = history.value.map(item => ({
+      '通知标题': item.title,
+      '培训项目': item.project,
+      '发送范围': item.scope,
+      '发送时间': item.sendTime,
+      '发送人数': item.count + '人',
+      '状态': item.statusText,
+    }))
+
+    const ws = XLSX.utils.json_to_sheet(exportData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '通知发送记录')
+
+    ws['!cols'] = [
+      { wch: 25 }, // 通知标题
+      { wch: 20 }, // 培训项目
+      { wch: 15 }, // 发送范围
+      { wch: 20 }, // 发送时间
+      { wch: 10 }, // 发送人数
+      { wch: 10 }, // 状态
+    ]
+
+    const filename = `通知发送记录_${dayjs().format('YYYY-MM-DD')}.xlsx`
+    XLSX.writeFile(wb, filename)
+    ElMessage.success('导出成功')
+  } catch (error) {
+    console.error('Export error:', error)
+    ElMessage.error('导出失败')
   }
 }
 

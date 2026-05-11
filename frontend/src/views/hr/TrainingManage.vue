@@ -2,6 +2,9 @@
   <div class="training-manage">
     <div class="header-actions">
       <h2 class="page-title">培训项目管理</h2>
+      <el-button type="primary" @click="handleExport">
+        导出项目
+      </el-button>
     </div>
 
     <el-card>
@@ -89,12 +92,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTrainingStore } from '@/stores/training'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Reading } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
+import * as XLSX from 'xlsx'
 
 const router = useRouter()
 const trainingStore = useTrainingStore()
@@ -174,6 +178,42 @@ function handlePageChange(page) {
   fetchProjects()
 }
 
+function handleExport() {
+  if (projectList.value.length === 0) {
+    ElMessage.warning('暂无数据可导出')
+    return
+  }
+
+  try {
+    const exportData = projectList.value.map(item => ({
+      '项目名称': item.title,
+      '状态': item.status_text,
+      '是否必修': item.is_required ? '是' : '否',
+      '截止日期': formatDate(item.deadline),
+      '创建时间': formatDate(item.create_time),
+    }))
+
+    const ws = XLSX.utils.json_to_sheet(exportData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '培训项目')
+
+    ws['!cols'] = [
+      { wch: 30 }, // 项目名称
+      { wch: 10 }, // 状态
+      { wch: 10 }, // 是否必修
+      { wch: 15 }, // 截止日期
+      { wch: 15 }, // 创建时间
+    ]
+
+    const filename = `培训项目_${dayjs().format('YYYY-MM-DD')}.xlsx`
+    XLSX.writeFile(wb, filename)
+    ElMessage.success('导出成功')
+  } catch (error) {
+    console.error('Export error:', error)
+    ElMessage.error('导出失败')
+  }
+}
+
 async function fetchProjects() {
   loading.value = true
   try {
@@ -191,6 +231,11 @@ async function fetchProjects() {
 }
 
 onMounted(() => {
+  fetchProjects()
+})
+
+watch(activeTab, () => {
+  pagination.value.page = 1
   fetchProjects()
 })
 </script>

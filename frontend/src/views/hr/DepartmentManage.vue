@@ -2,10 +2,16 @@
   <div class="department-manage">
     <div class="header-actions">
       <h2 class="page-title">部门管理</h2>
-      <el-button type="primary" @click="showImportDialog = true">
-        <el-icon><Upload /></el-icon>
-        Excel导入
-      </el-button>
+      <div class="header-buttons">
+        <el-button type="primary" @click="showCreateDialog = true">
+          <el-icon><Plus /></el-icon>
+          创建部门
+        </el-button>
+        <el-button @click="showImportDialog = true">
+          <el-icon><Upload /></el-icon>
+          Excel导入
+        </el-button>
+      </div>
     </div>
 
     <el-card>
@@ -62,21 +68,83 @@
         <el-button type="primary" :loading="importing" @click="handleImport">导入</el-button>
       </template>
     </el-dialog>
+
+    <!-- 创建部门对话框 -->
+    <el-dialog v-model="showCreateDialog" title="创建部门" width="500px">
+      <el-form :model="createForm" label-width="100px">
+        <el-form-item label="部门编码" required>
+          <el-input v-model="createForm.dept_code" placeholder="如：DEPT001" />
+        </el-form-item>
+        <el-form-item label="部门名称" required>
+          <el-input v-model="createForm.dept_name" placeholder="请输入部门名称" />
+        </el-form-item>
+        <el-form-item label="上级部门">
+          <el-select v-model="createForm.parent_id" placeholder="无上级部门" clearable>
+            <el-option label="（无上级部门）" value="" />
+            <el-option
+              v-for="dept in flatDepartmentList"
+              :key="dept.dept_id"
+              :label="dept.dept_name"
+              :value="dept.dept_id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="排序">
+          <el-input-number v-model="createForm.sort_order" :min="0" :max="9999" />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-radio-group v-model="createForm.status">
+            <el-radio :value="1">启用</el-radio>
+            <el-radio :value="0">禁用</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="showCreateDialog = false">取消</el-button>
+        <el-button type="primary" :loading="creating" @click="handleCreate">创建</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { getDepartmentTree, importDepartments } from '@/api/department'
+import { ref, computed, onMounted } from 'vue'
+import { getDepartmentTree, importDepartments, createDepartment } from '@/api/department'
 import { ElMessage } from 'element-plus'
-import { Upload } from '@element-plus/icons-vue'
+import { Upload, Plus } from '@element-plus/icons-vue'
 
 const departmentTree = ref([])
 const showImportDialog = ref(false)
+const showCreateDialog = ref(false)
 const importMode = ref('simulate')
 const importing = ref(false)
+const creating = ref(false)
 const uploadRef = ref(null)
 const selectedFile = ref(null)
+
+const createForm = ref({
+  dept_code: '',
+  dept_name: '',
+  parent_id: '',
+  sort_order: 0,
+  status: 1,
+})
+
+// Flatten department tree for parent selection
+const flatDepartmentList = computed(() => {
+  const result = []
+  function flatten(list) {
+    for (const item of list) {
+      result.push({ dept_id: item.dept_id, dept_name: item.dept_name })
+      if (item.children && item.children.length > 0) {
+        flatten(item.children)
+      }
+    }
+  }
+  flatten(departmentTree.value)
+  return result
+})
 
 const treeProps = {
   label: 'dept_name',
@@ -95,6 +163,42 @@ async function fetchDepartmentTree() {
     }
   } catch (error) {
     ElMessage.error('获取部门列表失败')
+  }
+}
+
+async function handleCreate() {
+  if (!createForm.value.dept_code) {
+    ElMessage.warning('请输入部门编码')
+    return
+  }
+  if (!createForm.value.dept_name) {
+    ElMessage.warning('请输入部门名称')
+    return
+  }
+
+  creating.value = true
+  try {
+    const res = await createDepartment(createForm.value)
+    if (res.code === 0) {
+      ElMessage.success('创建成功')
+      showCreateDialog.value = false
+      // Reset form
+      createForm.value = {
+        dept_code: '',
+        dept_name: '',
+        parent_id: '',
+        sort_order: 0,
+        status: 1,
+      }
+      // Refresh tree
+      fetchDepartmentTree()
+    } else {
+      ElMessage.error(res.message || '创建失败')
+    }
+  } catch (error) {
+    ElMessage.error('创建失败')
+  } finally {
+    creating.value = false
   }
 }
 
@@ -153,6 +257,11 @@ onMounted(() => {
   font-weight: 600;
   color: #303133;
   margin: 0;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 12px;
 }
 
 .department-tree {

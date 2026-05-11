@@ -54,3 +54,24 @@ class LoginSuccessData(BaseModel):
 class LoginSuccessResponse(BaseModel):
     code: int = 0
     data: LoginSuccessData
+
+
+class UserCreate(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+    password: str = Field(..., min_length=6, max_length=50)
+    real_name: str = Field(..., min_length=1, max_length=100)
+    email: Optional[str] = Field(None, max_length=100)
+    phone: Optional[str] = Field(None, max_length=20)
+    dept_id: Optional[str] = Field(None, max_length=32)
+    role: int = Field(default=2, ge=1, le=2)  # 1=HR_ADMIN, 2=EMPLOYEE
+    status: int = Field(default=1, ge=0, le=1)
+
+
+class UserUpdate(BaseModel):
+    real_name: Optional[str] = Field(None, max_length=100)
+    email: Optional[str] = Field(None, max_length=100)
+    phone: Optional[str] = Field(None, max_length=20)
+    dept_id: Optional[str] = Field(None, max_length=32)
+    role: Optional[int] = Field(None, ge=1, le=2)
+    status: Optional[int] = Field(None, ge=0, le=1)
+    password: Optional[str] = Field(None, min_length=6, max_length=50)

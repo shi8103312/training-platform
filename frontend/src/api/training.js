@@ -71,6 +71,14 @@ export function getPlayToken(materialId) {
   })
 }
 
+export function updateMaterialDuration(materialId, duration) {
+  return request({
+    url: `/v1/training/material/${materialId}/duration`,
+    method: 'put',
+    params: { duration },
+  })
+}
+
 export function deleteMaterial(materialId) {
   return request({
     url: `/v1/training/material/${materialId}`,
@@ -86,6 +94,7 @@ export function getProgress(projectId) {
 }
 
 export function updateProgress(data) {
+  console.log('[DEBUG API] updateProgress called with:', data)
   return request({
     url: '/v1/training/progress/update',
     method: 'post',

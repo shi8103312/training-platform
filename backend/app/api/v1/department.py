@@ -108,9 +108,12 @@ async def create_department(
         }
 
     # Validate parent exists
-    if dept_data.parent_id:
+    # Handle empty string parent_id
+    parent_id = dept_data.parent_id if dept_data.parent_id else None
+
+    if parent_id:
         parent = db.query(Department).filter(
-            Department.dept_id == dept_data.parent_id
+            Department.dept_id == parent_id
         ).first()
         if not parent:
             return {
@@ -130,7 +133,7 @@ async def create_department(
         dept_id=dept_id,
         dept_code=dept_data.dept_code,
         dept_name=dept_data.dept_name,
-        parent_id=dept_data.parent_id,
+        parent_id=parent_id,
         dept_level=level,
         sort_order=dept_data.sort_order,
         status=dept_data.status,

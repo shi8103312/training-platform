@@ -1,10 +1,12 @@
 """
 FastAPI Application Entry Point
 """
+import os
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from .config import settings
@@ -40,6 +42,11 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Mount uploads directory for static file serving
+uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
+if os.path.exists(uploads_dir):
+    app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 # Configure CORS
 app.add_middleware(
@@ -101,6 +108,16 @@ async def root():
 async def health_check():
     return {
         "status": "healthy",
+    }
+
+
+@app.get("/debug/uploads")
+async def debug_uploads():
+    uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
+    return {
+        "uploads_dir": uploads_dir,
+        "exists": os.path.exists(uploads_dir),
+        "files": os.listdir(uploads_dir) if os.path.exists(uploads_dir) else [],
     }
 
 

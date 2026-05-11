@@ -61,22 +61,28 @@ async def get_project_progress(
     # Calculate overall status
     overall_status = 0  # Not started
     completed_count = 0
+    in_progress_count = 0  # Started but not completed
 
     material_progress_list = []
+    print(f"[DEBUG] get_project_progress: user={current_user.user_id}, project={project_id}, materials count={len(materials)}, progress_map size={len(progress_map)}")
     for m in materials:
         progress = progress_map.get(m.material_id)
         if progress:
             is_completed = bool(progress.is_completed)
             progress_pct = progress.progress_percentage
+            has_progress = progress.max_position > 0
             if is_completed:
                 completed_count += 1
-                overall_status = 1  # In progress
+            elif has_progress:
+                in_progress_count += 1
+                overall_status = 1  # In progress (at least one material started but not completed)
             material_progress_list.append({
                 "material_id": m.material_id,
                 "title": m.title,
                 "material_type": m.material_type,
                 "progress": progress_pct,
                 "max_position": progress.max_position,
+                "total_watched_seconds": progress.total_watched_seconds or 0,
                 "is_completed": is_completed,
                 "is_required": True,  # TODO: Add required flag to material
             })
@@ -87,6 +93,7 @@ async def get_project_progress(
                 "material_type": m.material_type,
                 "progress": 0,
                 "max_position": 0,
+                "total_watched_seconds": 0,
                 "is_completed": False,
                 "is_required": True,
             })
@@ -94,6 +101,8 @@ async def get_project_progress(
     # Check if all completed
     if completed_count == len(materials) and len(materials) > 0:
         overall_status = 2  # Completed
+
+    print(f"[DEBUG] get_project_progress: completed_count={completed_count}, in_progress_count={in_progress_count}, overall_status={overall_status}")
 
     # Get exam status
     exam_status = None
@@ -124,6 +133,7 @@ async def get_project_progress(
                 "score": None,
             }
 
+    print(f"[DEBUG] get_project_progress returning: overall_status={overall_status}, materials_count={len(material_progress_list)}")
     return {
         "code": 0,
         "data": {
@@ -150,6 +160,8 @@ async def update_progress(
     - If reported position > max_position + 30s, it's considered cheating and ignored
     - Completion: max_position >= total_duration * 95%
     """
+    print(f"[DEBUG] update_progress called: user={current_user.user_id}, material={progress_data.material_id}, play={progress_data.play_position}, max={progress_data.max_position}")
+
     # Get material
     material = db.query(Material).filter(
         Material.material_id == progress_data.material_id,
@@ -162,19 +174,25 @@ async def update_progress(
             "message": "材料不存在",
         }
 
+    print(f"[DEBUG] material duration: {material.duration}")
+
     # Get existing progress
     progress = db.query(WatchProgress).filter(
         WatchProgress.user_id == current_user.user_id,
         WatchProgress.material_id == progress_data.material_id,
     ).first()
 
+    print(f"[DEBUG] existing progress: {progress}, max_position in DB: {progress.max_position if progress else 'None'}")
+
     current_time = datetime.now()
     max_position = progress_data.max_position
     play_position = progress_data.play_position
+    total_watched = progress_data.total_watched_seconds or 0
 
     if progress:
         # Anti-cheating: ignore if trying to skip ahead more than 30 seconds
         if max_position > progress.max_position + 30:
+            print(f"[DEBUG] Anti-cheat triggered: max_position={max_position} > progress.max_position + 30 = {progress.max_position + 30}")
             # Detected cheating, only update time, not position
             progress.last_watch_time = current_time
             db.commit()
@@ -186,6 +204,8 @@ async def update_progress(
                 },
             }
 
+        print(f"[DEBUG] Updating progress: max_position {progress.max_position} -> {max_position}, watched_seconds {progress.watched_seconds} -> {play_position}, total_watched_seconds {progress.total_watched_seconds} + {total_watched}")
+
         # Update normal progress
         if max_position > progress.max_position:
             progress.max_position = max_position
@@ -193,18 +213,27 @@ async def update_progress(
         progress.watched_seconds = play_position
         progress.last_watch_time = current_time
 
+        # Accumulate total watched seconds
+        if total_watched > 0:
+            progress.total_watched_seconds = (progress.total_watched_seconds or 0) + total_watched
+
         # Check completion (95% rule)
-        if material.duration:
+        print(f"[DEBUG] Checking completion: material.duration={material.duration}, max_position={progress.max_position}")
+        if material.duration and material.duration > 0:
             completion_threshold = material.duration * 0.95
+            print(f"[DEBUG] Completion check: threshold={completion_threshold}, will_complete={progress.max_position >= completion_threshold}")
             if progress.max_position >= completion_threshold and not progress.is_completed:
                 progress.is_completed = 1
                 progress.completed_at = current_time
+                print(f"[DEBUG] Marked as completed based on 95% rule")
         elif progress.max_position >= 570:  # Fallback: 9.5 minutes
             if not progress.is_completed:
                 progress.is_completed = 1
                 progress.completed_at = current_time
+                print(f"[DEBUG] Marked as completed based on fallback (570s)")
 
     else:
+        print(f"[DEBUG] Creating new progress record: max_position={max_position}, watched_seconds={play_position}, total_watched_seconds={total_watched}")
         # Create new progress record
         record_id = f"R{uuid.uuid4().hex[:8].upper()}"
         progress = WatchProgress(
@@ -214,21 +243,28 @@ async def update_progress(
             watched_seconds=play_position,
             max_position=max_position,
             total_duration=material.duration or 0,
+            total_watched_seconds=total_watched,
             last_watch_time=current_time,
         )
         db.add(progress)
 
         # Check completion
-        if material.duration:
+        print(f"[DEBUG] New progress - checking completion: material.duration={material.duration}, max_position={max_position}")
+        if material.duration and material.duration > 0:
             if max_position >= material.duration * 0.95:
                 progress.is_completed = 1
                 progress.completed_at = current_time
+                print(f"[DEBUG] New progress marked as completed (95% rule)")
         elif max_position >= 570:
             progress.is_completed = 1
             progress.completed_at = current_time
+            print(f"[DEBUG] New progress marked as completed (fallback 570s)")
 
     db.commit()
 
+    # Refresh to get actual saved values
+    db.refresh(progress)
+    print(f"[DEBUG] update_progress returning: is_completed={progress.is_completed}, max_position={progress.max_position}, watched_seconds={progress.watched_seconds}")
     return {
         "code": 0,
         "data": {
@@ -274,19 +310,27 @@ async def export_progress(
 
     # Build query for users who should see this project
     # Based on push_scope: {"type": "all"} or {"type": "departments", "dept_ids": [...]} or {"type": "users", "user_ids": [...]}
-    push_scope = json.loads(project.push_scope) if isinstance(project.push_scope, str) else project.push_scope
+    try:
+        push_scope = json.loads(project.push_scope) if isinstance(project.push_scope, str) else project.push_scope
+    except (json.JSONDecodeError, TypeError):
+        push_scope = {}
+
+    # Default to "all" if type is not specified
+    push_scope_type = push_scope.get("type") if push_scope else None
+
+    print(f"[DEBUG export_progress] project_id={project_id}, total_materials={total_materials}, push_scope={push_scope}, push_scope_type={push_scope_type}")
 
     user_query = db.query(User).filter(User.status == 1)  # Only active users
 
-    if push_scope.get("type") == "departments":
+    if push_scope_type == "departments":
         dept_ids = push_scope.get("dept_ids", [])
         if dept_ids:
             user_query = user_query.filter(User.dept_id.in_(dept_ids))
-    elif push_scope.get("type") == "users":
+    elif push_scope_type == "users":
         user_ids = push_scope.get("user_ids", [])
         if user_ids:
             user_query = user_query.filter(User.user_id.in_(user_ids))
-    # For "all" type, we don't filter by department
+    # For "all" type or no type, we don't filter by department
 
     # Apply department filter
     if dept_id:
@@ -301,6 +345,8 @@ async def export_progress(
 
     # Get all user IDs
     user_ids = [u.user_id for u in users]
+
+    print(f"[DEBUG export_progress] total_employees={total_employees}, users_count={len(users)}, user_ids={user_ids[:5] if user_ids else []}")
 
     # Get watch progress for all materials
     watch_progress_map = {}
@@ -402,6 +448,8 @@ async def export_progress(
     # Get department list for filter
     departments = db.query(Department).filter(Department.status == 1).all()
 
+    print(f"[DEBUG export_progress] returning stats={stats}, total_employees={total_employees}, list_count={len(result_list)}")
+
     return {
         "code": 0,
         "data": {
@@ -454,18 +502,25 @@ async def get_progress_stats(
     total_materials = len(materials)
 
     # Get push scope
-    push_scope = json.loads(project.push_scope) if isinstance(project.push_scope, str) else project.push_scope
+    try:
+        push_scope = json.loads(project.push_scope) if isinstance(project.push_scope, str) else project.push_scope
+    except (json.JSONDecodeError, TypeError):
+        push_scope = {}
+
+    # Default to "all" if type is not specified
+    push_scope_type = push_scope.get("type") if push_scope else None
 
     user_query = db.query(User).filter(User.status == 1)
 
-    if push_scope.get("type") == "departments":
+    if push_scope_type == "departments":
         dept_ids = push_scope.get("dept_ids", [])
         if dept_ids:
             user_query = user_query.filter(User.dept_id.in_(dept_ids))
-    elif push_scope.get("type") == "users":
+    elif push_scope_type == "users":
         user_ids = push_scope.get("user_ids", [])
         if user_ids:
             user_query = user_query.filter(User.user_id.in_(user_ids))
+    # For "all" type or no type, we don't filter by department
 
     users = user_query.all()
     user_ids = [u.user_id for u in users]

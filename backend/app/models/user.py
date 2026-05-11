@@ -16,7 +16,7 @@ class User(Base):
 
     user_id = Column(VARCHAR(32), primary_key=True, comment="User ID (Employee ID)")
     dept_id = Column(
-        VARCHAR(32), ForeignKey("sys_department.dept_id"), nullable=False, comment="Department ID"
+        VARCHAR(32), ForeignKey("sys_department.dept_id"), nullable=True, comment="Department ID"
     )
     username = Column(VARCHAR(50), unique=True, nullable=False, comment="Username")
     password_hash = Column(VARCHAR(255), nullable=False, comment="Password hash (bcrypt)")
