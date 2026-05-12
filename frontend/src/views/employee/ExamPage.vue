@@ -288,6 +288,9 @@ onMounted(async () => {
   const res = await getExamDetail(route.params.id)
   if (res.code === 0) {
     examInfo.value = res.data
+  } else {
+    ElMessage.error('考试不存在或已删除')
+    router.push('/exam-history')
   }
 })
 

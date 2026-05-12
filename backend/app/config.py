@@ -4,6 +4,14 @@ Application Configuration
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 from typing import Optional
+import secrets
+import string
+
+
+def generate_secure_secret(length: int = 64) -> str:
+    """Generate a cryptographically secure random string."""
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 
 class Settings(BaseSettings):
@@ -27,8 +35,8 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: Optional[str] = None
     REDIS_DB: int = 0
 
-    # JWT
-    JWT_SECRET_KEY: str = "your-super-secret-key-change-in-production"
+    # JWT - Generate secure secret if not provided
+    JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -63,12 +71,22 @@ class Settings(BaseSettings):
     ALLOWED_VIDEO_EXTENSIONS: list = ["mp4", "avi", "mov"]
     ALLOWED_DOCUMENT_EXTENSIONS: list = ["pdf", "doc", "docx"]
 
-    # CORS
-    CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176", "http://localhost:5177", "http://localhost:5178", "http://localhost:5179", "http://localhost:5180", "http://localhost:3000"]
+    # CORS - Comma-separated list of allowed origins
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5179,http://localhost:5180,http://localhost:3000"
 
     class Config:
         env_file = ".env"
         case_sensitive = True
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Generate secure JWT secret if not set
+        if not self.JWT_SECRET_KEY:
+            self.JWT_SECRET_KEY = generate_secure_secret(64)
+            print(f"WARNING: Generated random JWT_SECRET_KEY. Set JWT_SECRET_KEY in .env for production!")
+        # Parse CORS_ORIGINS from comma-separated string to list
+        if isinstance(self.CORS_ORIGINS, str):
+            self.CORS_ORIGINS = [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
 
 @lru_cache()

@@ -37,30 +37,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { onMounted, onActivated } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useNotificationStore } from '@/stores/notification'
 import { ElMessageBox, ElBadge } from 'element-plus'
-import { getMyNotifications } from '@/api/notification'
+import { storeToRefs } from 'pinia'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
-const unreadCount = ref(0)
+const notificationStore = useNotificationStore()
+
+const { unreadCount } = storeToRefs(notificationStore)
 
 function goToNotification() {
   router.push('/notification')
-}
-
-async function fetchUnreadCount() {
-  try {
-    const res = await getMyNotifications({ page: 1, page_size: 100 })
-    if (res.code === 0) {
-      unreadCount.value = res.data.filter(n => n.read_status === 0).length
-    }
-  } catch (error) {
-    console.error('Failed to fetch notifications:', error)
-  }
 }
 
 function handleLogout() {
@@ -75,7 +67,12 @@ function handleLogout() {
 }
 
 onMounted(() => {
-  fetchUnreadCount()
+  notificationStore.fetchUnreadCount()
+})
+
+// Refresh when coming back from notification page
+onActivated(() => {
+  notificationStore.fetchUnreadCount()
 })
 </script>
 

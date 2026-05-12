@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, Request, HTTPException, status
 from sqlalchemy.orm import Session
 from fastapi.security import HTTPBearer
 from datetime import datetime, timedelta
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 import uuid
 
 from ...database import get_db
@@ -31,6 +33,9 @@ from ...schemas.auth import (
 )
 
 router = APIRouter(prefix="/auth", tags=["认证"])
+
+# Rate limiter for auth endpoints
+auth_limiter = Limiter(key_func=get_remote_address)
 
 
 def _check_login_locked(username: str) -> bool:
@@ -111,6 +116,7 @@ async def get_current_user_from_request(
 
 
 @router.post("/login", response_model=LoginSuccessResponse)
+@auth_limiter.limit("5/minute")
 async def login(
     request: Request,
     login_data: LoginRequest,
@@ -118,6 +124,7 @@ async def login(
 ):
     """
     User login endpoint.
+    Rate limited to 5 attempts per minute per IP.
     """
     username = login_data.username
 

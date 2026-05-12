@@ -156,7 +156,7 @@ function formatDuration(seconds) {
 function goToExam(record) {
   // Only allow re-exam if not passed
   if (!record.passed) {
-    router.push(`/exam/${record.project_id}`)
+    router.push(`/exam/${record.exam_id}`)
   }
 }
 

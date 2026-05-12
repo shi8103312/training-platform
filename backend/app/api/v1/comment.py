@@ -1,10 +1,11 @@
 """
 Comment API Routes
 """
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 from typing import Optional, List
-from datetime import datetime
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 import uuid
 import re
 
@@ -13,9 +14,12 @@ from ...models.user import User
 from ...models.training import Project, Comment
 from ...api.deps import get_current_user
 from ...core.permissions import Role
-from ...schemas.training import CreateCommentRequest, CommentResponse
+from ...schemas.training import CreateCommentRequest
 
 router = APIRouter(prefix="/comment", tags=["评论"])
+
+# Rate limiter for comment endpoints
+comment_limiter = Limiter(key_func=get_remote_address)
 
 
 def parse_mentions(content: str) -> List[str]:
@@ -141,16 +145,16 @@ async def get_comments(
 
 
 @router.post("")
+@comment_limiter.limit("10/minute")
 async def create_comment(
+    request: Request,
     comment_data: CreateCommentRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Create a comment or reply.
-
-    - Content: max 500 characters
-    - Replies: max 2 levels (parent_id)
+    Rate limited to 10 comments per minute per IP.
     """
     # Validate content length
     if len(comment_data.content) > 500:

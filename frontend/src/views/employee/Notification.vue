@@ -104,6 +104,7 @@
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { getMyNotifications, markNotificationRead } from '@/api/notification'
+import { useNotificationStore } from '@/stores/notification'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -111,6 +112,7 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 dayjs.extend(relativeTime)
 
 const router = useRouter()
+const notificationStore = useNotificationStore()
 
 const loading = ref(false)
 const activeTab = ref('all')
@@ -182,6 +184,7 @@ async function markAsRead(notifId) {
       const notif = notifications.value.find(n => n.notif_id === notifId)
       if (notif) {
         notif.read_status = 1
+        notificationStore.decrementUnread()
       }
     }
   } catch (error) {

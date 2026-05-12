@@ -146,10 +146,27 @@
                 </div>
               </div>
               <div class="input-actions">
-                <span v-if="replyTo" class="reply-hint">
-                  回复 @{{ replyTo.user_name }}
-                  <span class="cancel-reply" @click="cancelReply">×</span>
-                </span>
+                <div class="action-left">
+                  <span v-if="replyTo" class="reply-hint">
+                    回复 @{{ replyTo.user_name }}
+                    <span class="cancel-reply" @click="cancelReply">×</span>
+                  </span>
+                  <!-- 表情按钮 -->
+                  <span class="emoji-btn" @click="toggleEmojiPicker">
+                    😀
+                  </span>
+                  <!-- 表情选择器 -->
+                  <div v-if="emojiPickerVisible" class="emoji-dropdown">
+                    <div class="emoji-grid">
+                      <span
+                        v-for="emoji in emojiList"
+                        :key="emoji"
+                        class="emoji-item"
+                        @click="insertEmoji(emoji)"
+                      >{{ emoji }}</span>
+                    </div>
+                  </div>
+                </div>
                 <button class="btn btn-primary" @click="submitComment" :disabled="!commentContent.trim()">
                   发表
                 </button>
@@ -256,7 +273,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onActivated, watch } from 'vue'
+import { ref, computed, onMounted, onActivated, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTrainingStore } from '@/stores/training'
 import { useUserStore } from '@/stores/user'
@@ -292,6 +309,26 @@ const replyTo = ref(null)
 const replyParent = ref(null)
 const likedComments = ref(new Set())
 const commentInput = ref(null)
+
+// 表情选择器
+const emojiPickerVisible = ref(false)
+const emojiList = [
+  '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂',
+  '🙂', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘',
+  '😗', '😚', '😋', '😛', '😜', '🤪', '😝', '🤑',
+  '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑',
+  '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔',
+  '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮',
+  '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳',
+  '😎', '🤓', '🧐', '😕', '😟', '🙁', '😮', '😯',
+  '😲', '😳', '🥺', '😦', '😧', '😨', '😰', '😥',
+  '😢', '😭', '😱', '😖', '😣', '😞', '😓', '😩',
+  '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿',
+  '👍', '👎', '👏', '🙌', '🤝', '🙏', '💪', '🤘',
+  '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍',
+  '💯', '💢', '💥', '💫', '💦', '💨', '🕳', '💣',
+  '✅', '❌', '❓', '❗', '💚', '🔥', '⭐', '✨',
+]
 
 // 当前用户
 const currentUserId = computed(() => userStore.userInfo?.user_id)
@@ -676,11 +713,48 @@ function selectMention(user) {
   }, 0)
 }
 
+function toggleEmojiPicker() {
+  emojiPickerVisible.value = !emojiPickerVisible.value
+}
+
+function insertEmoji(emoji) {
+  const text = commentContent.value
+  const cursorPos = commentInput.value?.selectionStart || text.length
+  const before = text.substring(0, cursorPos)
+  const after = text.substring(cursorPos)
+  commentContent.value = before + emoji + after
+
+  // Move cursor after emoji
+  setTimeout(() => {
+    const newPos = cursorPos + emoji.length
+    commentInput.value?.setSelectionRange(newPos, newPos)
+    commentInput.value?.focus()
+  }, 0)
+
+  emojiPickerVisible.value = false
+}
+
+// 点击外部关闭表情选择器
+function handleClickOutside(e) {
+  if (emojiPickerVisible.value && !e.target.closest('.emoji-btn') && !e.target.closest('.emoji-dropdown')) {
+    emojiPickerVisible.value = false
+  }
+  if (mentionSearchVisible.value && !e.target.closest('.mention-dropdown') && !e.target.closest('textarea')) {
+    mentionSearchVisible.value = false
+  }
+}
+
 onMounted(async () => {
   await fetchProjectDetail()
   await fetchProgress()
   await fetchComments()
   console.log('[DEBUG] TrainingDetail mounted, progress:', materialProgressMap.value)
+  // 注册点击外部关闭事件
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 
 // Watch for route changes to refresh data when returning from video player
@@ -1040,6 +1114,13 @@ watch(
   align-items: center;
 }
 
+.action-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
 .reply-hint {
   font-size: 13px;
   color: #667eea;
@@ -1056,6 +1137,54 @@ watch(
 
 .cancel-reply:hover {
   color: #666;
+}
+
+/* 表情选择器 */
+.emoji-btn {
+  cursor: pointer;
+  font-size: 20px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.emoji-btn:hover {
+  background: #f5f7fa;
+}
+
+.emoji-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  z-index: 1000;
+  margin-bottom: 8px;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+
+.emoji-item {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.emoji-item:hover {
+  background: #f5f7fa;
 }
 
 /* @提及下拉 */

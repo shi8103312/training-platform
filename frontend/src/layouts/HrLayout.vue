@@ -96,7 +96,7 @@ const pageTitle = computed(() => {
 })
 
 function goToEmployee() {
-  router.push('/employee')
+  router.push('/')
 }
 
 function handleLogout() {
