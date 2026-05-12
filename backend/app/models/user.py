@@ -89,3 +89,21 @@ class AuditLog(Base):
     ip_address = Column(VARCHAR(50), nullable=True, comment="IP Address")
     user_agent = Column(VARCHAR(255), nullable=True, comment="User-Agent")
     create_time = Column(DATETIME, nullable=False, server_default=func.now())
+
+
+class PasswordResetToken(Base):
+    """
+    Password reset token storage.
+    """
+    __tablename__ = "sys_password_reset_token"
+
+    token_id = Column(VARCHAR(64), primary_key=True, comment="Token ID")
+    user_id = Column(
+        VARCHAR(32), ForeignKey("sys_user.user_id"), nullable=False, comment="User ID"
+    )
+    token = Column(VARCHAR(255), nullable=False, comment="Reset token")
+    expires_at = Column(DATETIME, nullable=False, comment="Expiration time")
+    used = Column(TINYINT, nullable=False, default=0, comment="0=Unused, 1=Used")
+    create_time = Column(DATETIME, nullable=False, server_default=func.now())
+
+    user = relationship("User")

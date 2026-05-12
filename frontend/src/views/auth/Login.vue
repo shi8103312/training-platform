@@ -8,7 +8,32 @@
 
       <div class="form-item">
         <label>用户名</label>
+        <div class="username-select" v-if="rememberedUsers.length > 0">
+          <el-select
+            v-model="selectedUsername"
+            placeholder="选择已记住的账号或输入新账号"
+            filterable
+            allow-create
+            default-first-option
+            clearable
+            @change="handleUsernameChange"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="user in rememberedUsers"
+              :key="user"
+              :label="user"
+              :value="user"
+            >
+              <div class="user-option">
+                <span>{{ user }}</span>
+                <el-icon class="delete-icon" @click.stop="deleteUsername(user)"><Close /></el-icon>
+              </div>
+            </el-option>
+          </el-select>
+        </div>
         <input
+          v-else
           type="text"
           v-model="form.username"
           placeholder="请输入工号或用户名"
@@ -31,7 +56,7 @@
           <input type="checkbox" v-model="rememberMe" />
           记住登录状态
         </label>
-        <a href="#" class="forgot-link">忘记密码？</a>
+        <router-link to="/forgot-password" class="forgot-link">忘记密码？</router-link>
       </div>
 
       <button
@@ -42,16 +67,17 @@
         {{ loading ? '登录中...' : '登 录' }}
       </button>
 
-     
+
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
+import { Close } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -59,23 +85,60 @@ const userStore = useUserStore()
 
 const loading = ref(false)
 const rememberMe = ref(false)
+const selectedUsername = ref('')
 
+// Load remembered usernames (array)
+const rememberedUsers = ref(JSON.parse(localStorage.getItem('remembered_users') || '[]'))
 const form = reactive({
   username: '',
   password: '',
 })
 
+// Auto-fill if only one user
+if (rememberedUsers.value.length === 1) {
+  form.username = rememberedUsers.value[0]
+  selectedUsername.value = rememberedUsers.value[0]
+}
+
+function handleUsernameChange(val) {
+  form.username = val || ''
+}
+
+function deleteUsername(username) {
+  rememberedUsers.value = rememberedUsers.value.filter(u => u !== username)
+  localStorage.setItem('remembered_users', JSON.stringify(rememberedUsers.value))
+  if (selectedUsername.value === username) {
+    selectedUsername.value = ''
+    form.username = ''
+  }
+  ElMessage.success(`已删除记住的账号 ${username}`)
+}
+
 async function handleLogin() {
-  if (!form.username || !form.password) {
+  const username = form.username || selectedUsername.value
+  if (!username || !form.password) {
     ElMessage.warning('请输入用户名和密码')
     return
   }
 
   loading.value = true
   try {
-    const result = await userStore.login(form.username, form.password)
+    const result = await userStore.login(username, form.password, rememberMe.value)
 
     if (result.success) {
+      // Remember username if checkbox is checked
+      if (rememberMe.value && username) {
+        let users = JSON.parse(localStorage.getItem('remembered_users') || '[]')
+        // Remove if exists, then add to front
+        users = users.filter(u => u !== username)
+        users.unshift(username)
+        // Keep max 5 users
+        if (users.length > 5) {
+          users = users.slice(0, 5)
+        }
+        rememberedUsers.value = users
+        localStorage.setItem('remembered_users', JSON.stringify(users))
+      }
       ElMessage.success('登录成功')
       const redirect = route.query.redirect || (userStore.isHrAdmin ? '/hr' : '/')
       router.push(redirect)
@@ -232,5 +295,31 @@ async function handleLogin() {
   color: #999;
   font-size: 11px;
   font-style: normal;
+}
+
+.user-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.delete-icon {
+  opacity: 0;
+  cursor: pointer;
+  color: #909399;
+  transition: opacity 0.2s;
+}
+
+.user-option:hover .delete-icon {
+  opacity: 1;
+}
+
+.delete-icon:hover {
+  color: #f56c6c;
+}
+
+.username-select :deep(.el-select) {
+  width: 100%;
 }
 </style>

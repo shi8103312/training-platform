@@ -10,6 +10,7 @@ class LoginRequest(BaseModel):
     username: str = Field(..., min_length=1, max_length=50)
     password: str = Field(..., min_length=1)
     device_info: Optional[str] = Field(None, max_length=255)
+    remember_me: bool = Field(default=False, description="记住登录状态")
 
 
 class LoginResponse(BaseModel):
@@ -26,6 +27,15 @@ class TokenData(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(..., min_length=1)
+
+
+class ForgotPasswordRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=50)
+
+
+class ResetPasswordRequest(BaseModel):
+    reset_token: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=6, max_length=50)
 
 
 class UserInfo(BaseModel):

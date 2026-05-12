@@ -1,6 +1,6 @@
 import request from '@/utils/request'
 
-export function login(username, password, deviceInfo) {
+export function login(username, password, deviceInfo, rememberMe = false) {
   return request({
     url: '/v1/auth/login',
     method: 'post',
@@ -8,6 +8,7 @@ export function login(username, password, deviceInfo) {
       username,
       password,
       device_info: deviceInfo,
+      remember_me: rememberMe,
     },
   })
 }
@@ -48,5 +49,26 @@ export function getUserList(params) {
     url: '/v1/user/list',
     method: 'get',
     params,
+  })
+}
+
+export function forgotPassword(username) {
+  return request({
+    url: '/v1/auth/forgot-password',
+    method: 'post',
+    data: {
+      username,
+    },
+  })
+}
+
+export function resetPassword(resetToken, newPassword) {
+  return request({
+    url: '/v1/auth/reset-password',
+    method: 'post',
+    data: {
+      reset_token: resetToken,
+      new_password: newPassword,
+    },
   })
 }
