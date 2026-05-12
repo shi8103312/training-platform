@@ -326,6 +326,7 @@ class CommentResponse(BaseModel):
     parent_id: Optional[str] = None
     like_count: int
     reply_count: int
+    mention_users: List[dict] = []
     create_time: datetime
     replies: List["CommentResponse"] = []
 

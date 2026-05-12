@@ -111,28 +111,100 @@
         <!-- 评论区 -->
         <div class="panel">
           <h2 class="panel-title">💬 学员讨论</h2>
+
+          <!-- 项目评论Tab -->
+          <el-tabs v-model="commentTab">
+            <el-tab-pane label="项目评论" name="project"></el-tab-pane>
+            <el-tab-pane v-if="currentMaterialId" label="资料评论" name="material"></el-tab-pane>
+          </el-tabs>
+
           <div class="comment-section">
+            <!-- 评论输入 -->
             <div class="comment-input-wrap">
-              <textarea v-model="commentContent" placeholder="发表你的看法...（文明发言哦）"></textarea>
-              <button class="btn btn-primary" style="height: 80px; width: 100px;" @click="submitComment">
-                发表
-              </button>
+              <div class="input-container">
+                <textarea
+                  ref="commentInput"
+                  v-model="commentContent"
+                  :placeholder="replyTo ? `回复 @${replyTo.user_name}...` : '发表你的看法...（输入 @ 提及用户）'"
+                  @input="handleCommentInput"
+                  @keydown.enter.ctrl="submitComment"
+                ></textarea>
+                <!-- @提及用户搜索 -->
+                <div v-if="mentionSearchVisible" class="mention-dropdown">
+                  <div
+                    v-for="user in mentionUsers"
+                    :key="user.user_id"
+                    class="mention-item"
+                    @click="selectMention(user)"
+                  >
+                    <span class="mention-name">{{ user.real_name }}</span>
+                    <span class="mention-username">@{{ user.username }}</span>
+                  </div>
+                  <div v-if="mentionUsers.length === 0 && mentionKeyword" class="mention-empty">
+                    未找到用户
+                  </div>
+                </div>
+              </div>
+              <div class="input-actions">
+                <span v-if="replyTo" class="reply-hint">
+                  回复 @{{ replyTo.user_name }}
+                  <span class="cancel-reply" @click="cancelReply">×</span>
+                </span>
+                <button class="btn btn-primary" @click="submitComment" :disabled="!commentContent.trim()">
+                  发表
+                </button>
+              </div>
             </div>
 
-            <div v-if="comments.length === 0 && !loading" class="empty-tip">
+            <div v-if="comments.length === 0 && !commentLoading" class="empty-tip">
               暂无评论，快来发表第一条评论吧
             </div>
 
-            <div class="comment-item" v-for="comment in comments" :key="comment.comment_id">
-              <div class="comment-avatar">{{ getAvatarName(comment.user_name) }}</div>
-              <div class="comment-content">
-                <div class="comment-user">
-                  {{ comment.user_name }}
-                  <span style="font-weight: normal; color: #999; font-size: 12px;">
-                    {{ formatCommentTime(comment.create_time) }}
-                  </span>
+            <!-- 评论列表 -->
+            <div class="comment-list">
+              <div class="comment-item" v-for="comment in comments" :key="comment.comment_id">
+                <div class="comment-avatar">{{ getAvatarName(comment.user_name) }}</div>
+                <div class="comment-content">
+                  <div class="comment-user">
+                    {{ comment.user_name }}
+                    <span class="comment-time">{{ formatCommentTime(comment.create_time) }}</span>
+                  </div>
+                  <div class="comment-text">
+                    {{ comment.content }}
+                  </div>
+                  <div class="comment-actions">
+                    <span class="action-btn like-btn" :class="{ liked: comment.liked }" @click="toggleLike(comment)">
+                      {{ comment.liked ? '❤️' : '🤍' }} {{ comment.like_count || '' }}
+                    </span>
+                    <span class="action-btn" @click="startReply(comment)">回复</span>
+                    <span v-if="comment.user_id === currentUserId || isHrAdmin" class="action-btn delete-btn" @click="handleDeleteComment(comment)">
+                      删除
+                    </span>
+                  </div>
+
+                  <!-- 回复列表 -->
+                  <div v-if="comment.replies && comment.replies.length > 0" class="reply-list">
+                    <div class="comment-item reply-item" v-for="reply in comment.replies" :key="reply.comment_id">
+                      <div class="comment-avatar small">{{ getAvatarName(reply.user_name) }}</div>
+                      <div class="comment-content">
+                        <div class="comment-user">
+                          {{ reply.user_name }}
+                          <span class="comment-time">{{ formatCommentTime(reply.create_time) }}</span>
+                        </div>
+                        <div class="comment-text">{{ reply.content }}</div>
+                        <div class="comment-actions">
+                          <span class="action-btn like-btn" :class="{ liked: reply.liked }" @click="toggleLike(reply)">
+                            {{ reply.liked ? '❤️' : '🤍' }} {{ reply.like_count || '' }}
+                          </span>
+                          <span class="action-btn" @click="startReply(reply, comment)">回复</span>
+                          <span v-if="reply.user_id === currentUserId || isHrAdmin" class="action-btn delete-btn" @click="handleDeleteComment(reply)">
+                            删除
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div class="comment-text">{{ comment.content }}</div>
               </div>
             </div>
           </div>
@@ -187,7 +259,9 @@
 import { ref, computed, onMounted, onActivated, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTrainingStore } from '@/stores/training'
-import { ElMessage } from 'element-plus'
+import { useUserStore } from '@/stores/user'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getComments, createComment, deleteComment, likeComment, unlikeComment, searchUsers } from '@/api/comment'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 
@@ -196,8 +270,10 @@ dayjs.extend(relativeTime)
 const route = useRoute()
 const router = useRouter()
 const trainingStore = useTrainingStore()
+const userStore = useUserStore()
 
 const loading = ref(false)
+const commentLoading = ref(false)
 const project = ref(null)
 const materials = ref([])
 const exam = ref(null)
@@ -205,6 +281,21 @@ const comments = ref([])
 const userProgress = ref(0)
 const commentContent = ref('')
 const materialProgressMap = ref({})
+
+// 评论相关
+const commentTab = ref('project')
+const currentMaterialId = ref(null)
+const mentionSearchVisible = ref(false)
+const mentionUsers = ref([])
+const mentionKeyword = ref('')
+const replyTo = ref(null)
+const replyParent = ref(null)
+const likedComments = ref(new Set())
+const commentInput = ref(null)
+
+// 当前用户
+const currentUserId = computed(() => userStore.userInfo?.user_id)
+const isHrAdmin = computed(() => userStore.userInfo?.role === 1)
 
 const enrolledCount = ref('--')
 const isDeadlineSoon = computed(() => {
@@ -410,18 +501,185 @@ async function fetchProgress() {
   }
 }
 
-function submitComment() {
+async function submitComment() {
   if (!commentContent.value.trim()) {
     ElMessage.warning('请输入评论内容')
     return
   }
-  ElMessage.success('评论功能开发中...')
-  commentContent.value = ''
+
+  try {
+    const data = {
+      project_id: route.params.id,
+      content: commentContent.value,
+    }
+
+    if (commentTab.value === 'material' && currentMaterialId.value) {
+      data.material_id = currentMaterialId.value
+    }
+
+    if (replyTo.value) {
+      data.parent_id = replyTo.value.comment_id
+    }
+
+    await createComment(data)
+    ElMessage.success('评论发表成功')
+    commentContent.value = ''
+    replyTo.value = null
+    replyParent.value = null
+    mentionSearchVisible.value = false
+    await fetchComments()
+  } catch (error) {
+    console.error('Failed to submit comment:', error)
+    ElMessage.error('评论发表失败')
+  }
+}
+
+async function fetchComments() {
+  if (!route.params.id) return
+
+  commentLoading.value = true
+  try {
+    const params = {
+      project_id: route.params.id,
+      page: 1,
+      page_size: 50,
+    }
+
+    if (commentTab.value === 'material' && currentMaterialId.value) {
+      params.material_id = currentMaterialId.value
+    }
+
+    const res = await getComments(params)
+    if (res.code === 0) {
+      comments.value = res.data.list || []
+
+      // Restore liked state
+      comments.value.forEach(c => {
+        c.liked = likedComments.value.has(c.comment_id)
+        if (c.replies) {
+          c.replies.forEach(r => {
+            r.liked = likedComments.value.has(r.comment_id)
+          })
+        }
+      })
+    }
+  } catch (error) {
+    console.error('Failed to fetch comments:', error)
+  } finally {
+    commentLoading.value = false
+  }
+}
+
+async function handleDeleteComment(comment) {
+  try {
+    await ElMessageBox.confirm('确定要删除这条评论吗？', '提示', { type: 'warning' })
+    await deleteComment(comment.comment_id)
+    ElMessage.success('删除成功')
+    await fetchComments()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Failed to delete comment:', error)
+      ElMessage.error('删除失败')
+    }
+  }
+}
+
+async function toggleLike(comment) {
+  try {
+    if (comment.liked) {
+      await unlikeComment(comment.comment_id)
+      comment.like_count = Math.max(0, (comment.like_count || 1) - 1)
+      likedComments.value.delete(comment.comment_id)
+    } else {
+      await likeComment(comment.comment_id)
+      comment.like_count = (comment.like_count || 0) + 1
+      likedComments.value.add(comment.comment_id)
+    }
+    comment.liked = !comment.liked
+  } catch (error) {
+    console.error('Failed to toggle like:', error)
+  }
+}
+
+function startReply(comment, parentComment = null) {
+  replyTo.value = comment
+  replyParent.value = parentComment
+  commentInput.value?.focus()
+}
+
+function cancelReply() {
+  replyTo.value = null
+  replyParent.value = null
+}
+
+let mentionSearchTimer = null
+function handleCommentInput(e) {
+  const text = e.target.value
+  const cursorPos = e.target.selectionStart
+
+  // Find if user is typing @mention
+  const textBeforeCursor = text.substring(0, cursorPos)
+  const atIndex = textBeforeCursor.lastIndexOf('@')
+
+  if (atIndex !== -1) {
+    const textAfterAt = textBeforeCursor.substring(atIndex + 1)
+
+    // Check if there's no space after @
+    if (!textAfterAt.includes(' ') && textAfterAt.length <= 20) {
+      mentionKeyword.value = textAfterAt
+      searchMentionUsers(textAfterAt)
+      return
+    }
+  }
+
+  mentionSearchVisible.value = false
+  mentionKeyword.value = ''
+}
+
+async function searchMentionUsers(keyword) {
+  if (!keyword || keyword.length < 1) {
+    mentionUsers.value = []
+    mentionSearchVisible.value = false
+    return
+  }
+
+  try {
+    const res = await searchUsers(keyword)
+    if (res.code === 0) {
+      mentionUsers.value = res.data || []
+      mentionSearchVisible.value = mentionUsers.value.length > 0
+    }
+  } catch (error) {
+    console.error('Failed to search users:', error)
+  }
+}
+
+function selectMention(user) {
+  const text = commentContent.value
+  const cursorPos = commentInput.value?.selectionStart || text.length
+  const textBeforeCursor = text.substring(0, cursorPos)
+  const atIndex = textBeforeCursor.lastIndexOf('@')
+
+  // Replace @keyword with @username
+  const beforeAt = text.substring(0, atIndex)
+  const afterCursor = text.substring(cursorPos)
+  commentContent.value = beforeAt + '@' + user.username + ' ' + afterCursor
+
+  mentionSearchVisible.value = false
+  mentionUsers.value = []
+
+  // Focus back on textarea
+  setTimeout(() => {
+    const newPos = atIndex + user.username.length + 2
+    commentInput.value?.setSelectionRange(newPos, newPos)
+    commentInput.value?.focus()
+  }, 0)
 }
 
 onMounted(async () => {
   await fetchProjectDetail()
   await fetchProgress()
+  await fetchComments()
   console.log('[DEBUG] TrainingDetail mounted, progress:', materialProgressMap.value)
 })
 
@@ -434,8 +692,26 @@ watch(
       console.log('[DEBUG] Detected return to training detail, refreshing project detail and progress')
       await fetchProjectDetail()  // Refresh to get updated material durations
       await fetchProgress()
+      await fetchComments()
     }
   }
+)
+
+// Watch comment tab changes
+watch(commentTab, () => {
+  fetchComments()
+})
+
+// Extract material ID from route if in material view
+watch(
+  () => route.params.materialId,
+  (materialId) => {
+    currentMaterialId.value = materialId || null
+    if (materialId) {
+      commentTab.value = 'material'
+    }
+  },
+  { immediate: true }
 )
 </script>
 
@@ -732,12 +1008,17 @@ watch(
 
 .comment-input-wrap {
   display: flex;
+  flex-direction: column;
   gap: 12px;
   margin-bottom: 20px;
 }
 
+.input-container {
+  position: relative;
+}
+
 .comment-input-wrap textarea {
-  flex: 1;
+  width: 100%;
   border: 1px solid #dcdfe6;
   border-radius: 8px;
   padding: 12px;
@@ -745,6 +1026,7 @@ watch(
   resize: none;
   height: 80px;
   font-family: inherit;
+  box-sizing: border-box;
 }
 
 .comment-input-wrap textarea:focus {
@@ -752,11 +1034,87 @@ watch(
   border-color: #667eea;
 }
 
+.input-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.reply-hint {
+  font-size: 13px;
+  color: #667eea;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cancel-reply {
+  cursor: pointer;
+  font-size: 18px;
+  color: #999;
+}
+
+.cancel-reply:hover {
+  color: #666;
+}
+
+/* @提及下拉 */
+.mention-dropdown {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.mention-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+}
+
+.mention-item:hover {
+  background: #f5f7fa;
+}
+
+.mention-name {
+  font-size: 14px;
+  color: #333;
+}
+
+.mention-username {
+  font-size: 12px;
+  color: #999;
+}
+
+.mention-empty {
+  padding: 12px;
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+}
+
+/* 评论列表 */
+.comment-list {
+  margin-top: 20px;
+}
+
 .comment-item {
   display: flex;
   gap: 12px;
   padding: 15px 0;
   border-bottom: 1px solid #f5f7fa;
+}
+
+.comment-item:last-child {
+  border-bottom: none;
 }
 
 .comment-avatar {
@@ -772,6 +1130,12 @@ watch(
   flex-shrink: 0;
 }
 
+.comment-avatar.small {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+}
+
 .comment-content {
   flex: 1;
 }
@@ -781,12 +1145,61 @@ watch(
   font-weight: 500;
   color: #333;
   margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comment-time {
+  font-weight: normal;
+  color: #999;
+  font-size: 12px;
 }
 
 .comment-text {
   font-size: 14px;
   color: #666;
   line-height: 1.6;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.action-btn {
+  font-size: 13px;
+  color: #999;
+  cursor: pointer;
+}
+
+.action-btn:hover {
+  color: #667eea;
+}
+
+.like-btn.liked {
+  color: #ff4757;
+}
+
+.delete-btn:hover {
+  color: #ff4757;
+}
+
+/* 回复列表 */
+.reply-list {
+  margin-top: 12px;
+  padding-left: 12px;
+  border-left: 2px solid #f5f7fa;
+}
+
+.reply-item {
+  padding: 12px 0;
+  border-bottom: 1px solid #f5f7fa;
+}
+
+.reply-item:last-child {
+  border-bottom: none;
 }
 
 .sidebar .progress-card {

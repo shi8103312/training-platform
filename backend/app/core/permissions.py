@@ -87,7 +87,7 @@ def check_user_access_to_project(user, project, db: Session) -> bool:
     if scope_type == "departments":
         # Check if user's department is in the scope
         user_dept_id = user.dept_id
-        target_depts = push_scope.get("departments", [])
+        target_depts = push_scope.get("dept_ids", []) or push_scope.get("departments", [])
 
         # Check direct department
         if user_dept_id in target_depts:

@@ -221,6 +221,7 @@ class Comment(Base):
     like_count = Column(INT, nullable=False, default=0, comment="Like count")
     reply_count = Column(INT, nullable=False, default=0, comment="Reply count")
     status = Column(TINYINT, nullable=False, default=1, comment="Status: 0=Hidden, 1=Visible")
+    mention_user_ids = Column(VARCHAR(500), nullable=True, comment="Mentioned user IDs, comma separated")
     is_deleted = Column(
         TINYINT, nullable=False, default=0, comment="Soft delete"
     )
