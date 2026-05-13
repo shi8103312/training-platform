@@ -4,6 +4,8 @@ User API Routes
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+import json
+from datetime import datetime, timedelta
 
 from ...database import get_db
 from ...models.user import User
@@ -96,6 +98,145 @@ async def get_dashboard_stats(
             "employee_count": employee_count,
             "pending_count": in_progress_count,
             "completion_rate": completion_rate,
+        },
+    }
+
+
+@router.get("/stats/projects")
+async def get_project_stats(
+    current_user: User = Depends(require_hr_admin()),
+    db: Session = Depends(get_db),
+):
+    """
+    Get statistics for all published projects.
+    Returns enrollment count, completion count, and completion rate per project.
+    """
+    from ...models.training import Project, Material, WatchProgress
+
+    # Get all published projects
+    projects = db.query(Project).filter(
+        Project.status == 1,
+        Project.is_deleted == 0,
+    ).all()
+
+    project_stats = []
+    for project in projects:
+        # Get project materials
+        materials = db.query(Material).filter(
+            Material.project_id == project.project_id,
+            Material.is_deleted == 0,
+        ).all()
+        material_ids = [m.material_id for m in materials]
+        total_materials = len(materials)
+
+        # Get push scope to determine target users
+        try:
+            push_scope = json.loads(project.push_scope) if isinstance(project.push_scope, str) else project.push_scope
+        except (json.JSONDecodeError, TypeError):
+            push_scope = {}
+
+        push_scope_type = push_scope.get("type") if push_scope else None
+
+        # Build user query based on push_scope
+        user_query = db.query(User).filter(User.status == 1, User.role == 2)
+
+        if push_scope_type == "departments":
+            dept_ids = push_scope.get("dept_ids", [])
+            if dept_ids:
+                user_query = user_query.filter(User.dept_id.in_(dept_ids))
+        elif push_scope_type == "users":
+            user_ids = push_scope.get("user_ids", [])
+            if user_ids:
+                user_query = user_query.filter(User.user_id.in_(user_ids))
+        # For "all" type or no type, no additional filter
+
+        target_users = user_query.all()
+        total_enrolled = len(target_users)
+        user_ids = [u.user_id for u in target_users]
+
+        # Count completions
+        completed_count = 0
+        in_progress_count = 0
+
+        if material_ids and user_ids:
+            # Get all watch progress for this project's materials and users
+            watch_records = db.query(WatchProgress).filter(
+                WatchProgress.material_id.in_(material_ids),
+                WatchProgress.user_id.in_(user_ids),
+            ).all()
+
+            # Build progress map per user
+            user_progress = {}
+            for wp in watch_records:
+                if wp.user_id not in user_progress:
+                    user_progress[wp.user_id] = {}
+                user_progress[wp.user_id][wp.material_id] = wp
+
+            # Calculate completion status per user
+            for user_id in user_ids:
+                user_wp = user_progress.get(user_id, {})
+                user_completed = 0
+                for m in materials:
+                    wp = user_wp.get(m.material_id)
+                    if wp and wp.is_completed:
+                        user_completed += 1
+
+                if user_completed == total_materials and total_materials > 0:
+                    completed_count += 1
+                elif user_completed > 0:
+                    in_progress_count += 1
+
+        completion_rate = int((completed_count / total_enrolled * 100)) if total_enrolled > 0 else 0
+
+        project_stats.append({
+            "project_id": project.project_id,
+            "title": project.title,
+            "is_required": project.is_required,
+            "status": project.status,
+            "status_text": project.status_text,
+            "deadline": project.deadline.isoformat() if project.deadline else None,
+            "enrolled_count": total_enrolled,
+            "completed_count": completed_count,
+            "in_progress_count": in_progress_count,
+            "completion_rate": completion_rate,
+        })
+
+    return {
+        "code": 0,
+        "data": project_stats,
+    }
+
+
+@router.get("/stats/trend")
+async def get_learning_trend(
+    current_user: User = Depends(require_hr_admin()),
+    db: Session = Depends(get_db),
+):
+    """
+    Get learning trend for the last 7 days.
+    Returns the number of users who completed at least one material each day.
+    """
+    from ...models.training import WatchProgress
+
+    # Get last 7 days trend
+    seven_days_ago = datetime.now() - timedelta(days=7)
+    recent_records = db.query(WatchProgress).filter(
+        WatchProgress.is_completed == 1,
+        WatchProgress.completed_at >= seven_days_ago,
+    ).all()
+
+    # Group by date
+    trend = {i: 0 for i in range(7)}
+    for record in recent_records:
+        if record.completed_at:
+            day_idx = (datetime.now() - record.completed_at).days
+            if 0 <= day_idx < 7:
+                trend[6 - day_idx] += 1
+
+    return {
+        "code": 0,
+        "data": {
+            "trend": list(trend.values()),
         },
     }
 

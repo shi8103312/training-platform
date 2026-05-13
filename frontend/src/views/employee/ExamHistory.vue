@@ -168,9 +168,9 @@ async function fetchHistory() {
       page_size: pagination.pageSize,
     })
     if (res.code === 0) {
-      history.value = res.data || []
-      pagination.total = res.pagination?.total || 0
-      pagination.totalPages = res.pagination?.total_pages || 1
+      history.value = res.data?.list || []
+      pagination.total = res.data?.pagination?.total || 0
+      pagination.totalPages = res.data?.pagination?.total_pages || 1
     }
   } catch (error) {
     console.error('Failed to fetch exam history:', error)

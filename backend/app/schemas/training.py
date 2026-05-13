@@ -307,6 +307,16 @@ class ExamHistoryResponse(BaseModel):
     data: List[ExamHistoryItem]
 
 
+class ExamAttemptAnswer(BaseModel):
+    question_id: str
+    answer: Optional[Union[str, List[str]]] = None
+
+
+class ExamAttemptSubmitRequest(BaseModel):
+    answers: Optional[List[ExamAttemptAnswer]] = None
+    violation_count: Optional[int] = Field(default=0, ge=0)
+
+
 # ============ Comment Schemas ============
 
 class CreateCommentRequest(BaseModel):

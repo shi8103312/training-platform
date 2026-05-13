@@ -110,6 +110,11 @@ const routes = [
       },
       {
         path: 'progress',
+        name: 'ProgressReportList',
+        component: () => import('@/views/hr/ProgressReport.vue'),
+      },
+      {
+        path: 'progress/:id',
         name: 'ProgressReport',
         component: () => import('@/views/hr/ProgressReport.vue'),
       },

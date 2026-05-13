@@ -64,6 +64,48 @@ export function uploadMaterial(formData) {
   })
 }
 
+export function uploadMaterialWithProgress(formData, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const percent = Math.round((e.loaded / e.total) * 100)
+        const loadedMB = (e.loaded / (1024 * 1024)).toFixed(1)
+        const totalMB = (e.total / (1024 * 1024)).toFixed(1)
+        onProgress(percent, `${loadedMB}MB / ${totalMB}MB`)
+      }
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const res = JSON.parse(xhr.responseText)
+          resolve(res)
+        } catch {
+          reject(new Error('Invalid JSON response'))
+        }
+      } else {
+        reject(new Error(`Upload failed with status ${xhr.status}`))
+      }
+    }
+
+    xhr.onerror = () => {
+      reject(new Error('Network error'))
+    }
+
+    xhr.open('POST', `/api/v1/training/material/upload`)
+
+    // Get token from localStorage
+    const token = localStorage.getItem('token')
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    }
+
+    xhr.send(formData)
+  })
+}
+
 export function getPlayToken(materialId) {
   return request({
     url: `/v1/training/material/${materialId}/play-token`,

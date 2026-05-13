@@ -11,11 +11,11 @@ import random
 
 from ...database import get_db
 from ...models.user import User
-from ...models.training import Project, Material, WatchProgress
+from ...models.training import Project, Material, WatchProgress, Progress
 from ...models.exam import Exam, Question, ExamAttempt
 from ...api.deps import get_current_user, require_hr_admin
 from ...core.permissions import Role
-from ...schemas.training import CreateExamRequest, QuestionSchema
+from ...schemas.training import CreateExamRequest, QuestionSchema, ExamAttemptSubmitRequest
 
 router = APIRouter(prefix="/exam", tags=["考试"])
 
@@ -102,6 +102,55 @@ async def create_exam(
     }
 
 
+@router.get("/history")
+async def get_exam_history(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get exam history for current user.
+    """
+    query = db.query(ExamAttempt).filter(
+        ExamAttempt.user_id == current_user.user_id,
+        ExamAttempt.status.in_([1, 2]),  # Submitted
+    )
+
+    total = query.count()
+    attempts = query.order_by(ExamAttempt.submit_time.desc()).offset(
+        (page - 1) * page_size
+    ).limit(page_size).all()
+
+    result = []
+    for a in attempts:
+        exam = db.query(Exam).filter(Exam.exam_id == a.exam_id).first()
+        if exam:
+            result.append({
+                "attempt_id": a.attempt_id,
+                "exam_id": a.exam_id,
+                "exam_title": exam.title,
+                "start_time": a.start_time.isoformat(),
+                "submit_time": a.submit_time.isoformat() if a.submit_time else None,
+                "score": a.score,
+                "passed": bool(a.passed) if a.passed is not None else None,
+                "passing_score": exam.passing_score,
+                "status": a.status_text,
+            })
+
+    return {
+        "code": 0,
+        "data": {
+            "list": result,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total": total,
+            },
+        },
+    }
+
+
 @router.get("/{exam_id}")
 async def get_exam_detail(
     exam_id: str,
@@ -109,7 +158,7 @@ async def get_exam_detail(
     db: Session = Depends(get_db),
 ):
     """
-    Get exam detail.
+    Get exam detail with user's attempt info.
     """
     exam = db.query(Exam).filter(
         Exam.exam_id == exam_id,
@@ -121,6 +170,25 @@ async def get_exam_detail(
             "code": 50001,
             "message": "考试不存在",
         }
+
+    # Get user's attempt info
+    attempts = db.query(ExamAttempt).filter(
+        ExamAttempt.exam_id == exam_id,
+        ExamAttempt.user_id == current_user.user_id,
+    ).all()
+
+    submitted_attempts = [a for a in attempts if a.status in (1, 2)]
+    best_score = None
+    has_passed = False
+    for a in submitted_attempts:
+        if a.score is not None:
+            if best_score is None or a.score > best_score:
+                best_score = a.score
+            if a.passed == 1:
+                has_passed = True
+
+    attempt_count = len(submitted_attempts)
+    remaining_attempts = exam.attempt_limit - attempt_count if exam.attempt_limit > 0 else 999
 
     return {
         "code": 0,
@@ -135,6 +203,10 @@ async def get_exam_detail(
             "total_score": exam.total_score,
             "question_count": exam.question_count,
             "status": exam.status,
+            "attempt_count": attempt_count,
+            "remaining_attempts": max(0, remaining_attempts),
+            "best_score": best_score,
+            "has_passed": has_passed,
         },
     }
 
@@ -295,8 +367,7 @@ async def start_exam(
 @router.post("/attempt/{attempt_id}/save")
 async def save_attempt(
     attempt_id: str,
-    answers: List[dict],
-    violation_count: Optional[int] = Query(0, ge=0),
+    request: ExamAttemptSubmitRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -322,8 +393,9 @@ async def save_attempt(
         }
 
     # Update answers and violation count
-    attempt.answers = json.dumps(answers)
-    attempt.violation_count = violation_count
+    answers_data = [a.model_dump() for a in request.answers] if request.answers else []
+    attempt.answers = json.dumps(answers_data)
+    attempt.violation_count = request.violation_count or 0
     db.commit()
 
     return {
@@ -335,8 +407,7 @@ async def save_attempt(
 @router.post("/attempt/{attempt_id}/submit")
 async def submit_exam(
     attempt_id: str,
-    answers: Optional[List[dict]] = None,
-    violation_count: Optional[int] = Query(0, ge=0),
+    request: ExamAttemptSubmitRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -376,8 +447,13 @@ async def submit_exam(
     correct_count = 0
     answer_results = []
 
-    submitted_answers = answers or json.loads(attempt.answers or "[]")
-    answer_map = {a["question_id"]: a["answer"] for a in submitted_answers}
+    submitted_answers = [a.model_dump() for a in request.answers] if request.answers else json.loads(attempt.answers or "[]")
+    answer_map = {}
+    for a in submitted_answers:
+        if isinstance(a, dict):
+            answer_map[a["question_id"]] = a.get("answer")
+        else:
+            answer_map[a.question_id] = a.answer if hasattr(a, 'answer') else None
 
     for q in questions:
         user_answer = answer_map.get(q.question_id)
@@ -386,11 +462,19 @@ async def submit_exam(
         if q.question_type == 1:  # Single choice
             correct = user_answer == q.correct_answer
         elif q.question_type == 2:  # Multiple choice
-            correct_set = set(json.loads(q.correct_answer))
-            user_set = set(json.loads(user_answer) if user_answer else "[]")
+            try:
+                correct_set = set(json.loads(q.correct_answer)) if q.correct_answer else set()
+            except:
+                correct_set = set()
+            try:
+                user_set = set(json.loads(user_answer)) if user_answer else set()
+            except:
+                user_set = set()
             correct = correct_set == user_set
         elif q.question_type == 3:  # True/False
             correct = user_answer == q.correct_answer
+        elif q.question_type == 4:  # Essay - no auto grading
+            correct = None
 
         if correct:
             total_score += q.score
@@ -413,9 +497,43 @@ async def submit_exam(
     attempt.time_spent = time_spent
     attempt.status = 1
     attempt.answers = json.dumps(submitted_answers)
-    attempt.violation_count = violation_count
+    attempt.violation_count = request.violation_count or 0
 
     db.commit()
+
+    # If passed, update learning progress to completed
+    if attempt.passed and exam.passing_score and total_score >= exam.passing_score:
+        # Get all materials for this project
+        materials = db.query(Material).filter(
+            Material.project_id == exam.project_id,
+            Material.is_deleted == 0,
+        ).all()
+
+        if materials:
+            # Check if all materials are completed
+            all_completed = True
+            for m in materials:
+                wp = db.query(WatchProgress).filter(
+                    WatchProgress.material_id == m.material_id,
+                    WatchProgress.user_id == current_user.user_id,
+                    WatchProgress.is_completed == 1,
+                ).first()
+                if not wp:
+                    all_completed = False
+                    break
+
+            if all_completed:
+                # Update progress to completed
+                progress = db.query(Progress).filter(
+                    Progress.project_id == exam.project_id,
+                    Progress.user_id == current_user.user_id,
+                ).first()
+
+                if progress:
+                    progress.overall_status = 2  # Completed
+                    progress.completion_time = datetime.now()
+                    progress.exam_attempt_id = attempt_id
+                    db.commit()
 
     return {
         "code": 0,
@@ -428,53 +546,5 @@ async def submit_exam(
             "submit_time": attempt.submit_time.isoformat(),
             "time_spent": time_spent,
             "answers": answer_results if exam.show_answer else None,
-        },
-    }
-
-
-@router.get("/history")
-async def get_exam_history(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """
-    Get exam history for current user.
-    """
-    query = db.query(ExamAttempt).filter(
-        ExamAttempt.user_id == current_user.user_id,
-        ExamAttempt.status.in_([1, 2]),  # Submitted
-    )
-
-    total = query.count()
-    attempts = query.order_by(ExamAttempt.submit_time.desc()).offset(
-        (page - 1) * page_size
-    ).limit(page_size).all()
-
-    result = []
-    for a in attempts:
-        exam = db.query(Exam).filter(Exam.exam_id == a.exam_id).first()
-        if exam:
-            result.append({
-                "attempt_id": a.attempt_id,
-                "exam_id": a.exam_id,
-                "exam_title": exam.title,
-                "start_time": a.start_time.isoformat(),
-                "submit_time": a.submit_time.isoformat() if a.submit_time else None,
-                "score": a.score,
-                "passed": bool(a.passed) if a.passed is not None else None,
-                "status": a.status_text,
-            })
-
-    return {
-        "code": 0,
-        "data": {
-            "list": result,
-            "pagination": {
-                "page": page,
-                "page_size": page_size,
-                "total": total,
-            },
         },
     }

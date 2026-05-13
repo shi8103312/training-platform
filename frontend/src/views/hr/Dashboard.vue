@@ -103,13 +103,13 @@
                 {{ project.is_required ? '必修' : '选修' }}
               </span>
             </td>
-            <td>--</td>
+            <td>{{ getProjectStatsData(project.project_id).enrolled_count || 0 }}</td>
             <td>
               <div style="display: flex; align-items: center; gap: 8px">
                 <div style="flex: 1; height: 6px; background: #f0f0f0; border-radius: 3px">
-                  <div style="width: 0%; height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 3px"></div>
+                  <div :style="{ width: getProjectStatsData(project.project_id).completion_rate + '%', height: '100%', background: 'linear-gradient(90deg, #667eea, #764ba2)', borderRadius: '3px' }"></div>
                 </div>
-                <span style="font-size: 13px; color: #667eea">--</span>
+                <span style="font-size: 13px; color: #667eea">{{ getProjectStatsData(project.project_id).completion_rate || 0 }}%</span>
               </div>
             </td>
             <td>{{ project.deadline ? formatDate(project.deadline) : '--' }}</td>
@@ -141,7 +141,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTrainingStore } from '@/stores/training'
-import { getDashboardStats } from '@/api/auth'
+import { getDashboardStats, getProjectStats, getLearningTrend } from '@/api/auth'
 import dayjs from 'dayjs'
 
 const router = useRouter()
@@ -149,6 +149,7 @@ const trainingStore = useTrainingStore()
 
 const loading = ref(false)
 const projectList = ref([])
+const projectStatsMap = ref({})
 const stats = ref({
   projectCount: 0,
   employeeCount: 0,
@@ -174,6 +175,10 @@ function formatDate(date) {
   return date ? dayjs(date).format('YYYY-MM-DD') : '--'
 }
 
+function getProjectStatsData(projectId) {
+  return projectStatsMap.value[projectId] || { enrolled_count: 0, completion_rate: 0 }
+}
+
 async function fetchStats() {
   try {
     const res = await getDashboardStats()
@@ -187,6 +192,32 @@ async function fetchStats() {
     }
   } catch (error) {
     console.error('Failed to fetch stats:', error)
+  }
+}
+
+async function fetchProjectStats() {
+  try {
+    const res = await getProjectStats()
+    if (res.code === 0 && res.data) {
+      const map = {}
+      res.data.forEach(item => {
+        map[item.project_id] = item
+      })
+      projectStatsMap.value = map
+    }
+  } catch (error) {
+    console.error('Failed to fetch project stats:', error)
+  }
+}
+
+async function fetchTrend() {
+  try {
+    const res = await getLearningTrend()
+    if (res.code === 0 && res.data) {
+      trendData.value = res.data.trend || [60, 90, 75, 110, 95, 130, 100]
+    }
+  } catch (error) {
+    console.error('Failed to fetch trend:', error)
   }
 }
 
@@ -205,6 +236,8 @@ async function fetchProjectList() {
 onMounted(async () => {
   await fetchStats()
   await fetchProjectList()
+  await fetchProjectStats()
+  await fetchTrend()
 })
 </script>
 

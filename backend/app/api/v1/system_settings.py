@@ -15,6 +15,7 @@ router = APIRouter(prefix="/settings", tags=["系统设置"])
 
 class SettingsUpdate(BaseModel):
     platform_name: Optional[str] = None
+    platform_logo: Optional[str] = None
     copyright: Optional[str] = None
     timezone: Optional[str] = None
     smtp_host: Optional[str] = None
@@ -41,6 +42,7 @@ class SettingsUpdate(BaseModel):
 # In-memory settings storage (in production, this would be in the database)
 _settings = {
     "platform_name": "集团内部培训平台",
+    "platform_logo": "",
     "copyright": "© 2026 某某集团 版权所有",
     "timezone": "Asia/Shanghai",
     "smtp_host": "smtp.company.com",

@@ -150,8 +150,8 @@ class WatchProgress(Base):
 
     @property
     def progress_percentage(self) -> int:
-        # Use total_duration if set, otherwise fall back to material.duration
-        duration = self.total_duration or (self.material.duration if self.material else 0)
+        # Use total_duration if set, don't access material relationship to avoid lazy load issues
+        duration = self.total_duration
         if duration == 0:
             # Fallback: use max_position directly as percentage (max 100)
             # This happens for videos uploaded before duration extraction was implemented

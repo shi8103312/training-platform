@@ -44,6 +44,20 @@ export function getDashboardStats() {
   })
 }
 
+export function getProjectStats() {
+  return request({
+    url: '/v1/user/stats/projects',
+    method: 'get',
+  })
+}
+
+export function getLearningTrend() {
+  return request({
+    url: '/v1/user/stats/trend',
+    method: 'get',
+  })
+}
+
 export function getUserList(params) {
   return request({
     url: '/v1/user/list',

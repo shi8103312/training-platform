@@ -39,8 +39,12 @@
           <div class="form-item">
             <label>平台Logo</label>
             <div style="display: flex; align-items: center; gap: 15px">
-              <div class="logo-preview">🏢</div>
-              <button class="btn btn-outline">上传Logo</button>
+              <div class="logo-preview">
+                <img v-if="settings.platformLogo" :src="settings.platformLogo" alt="Logo" style="width: 80px; height: 80px; object-fit: contain;" />
+                <span v-else style="font-size: 32px">🏢</span>
+              </div>
+              <button class="btn btn-outline" @click="triggerLogoUpload">上传Logo</button>
+              <input type="file" ref="logoInput" accept="image/*" style="display: none" @change="handleLogoUpload" />
             </div>
             <div class="hint">建议尺寸 200x200，支持 JPG、PNG，建议白色背景</div>
           </div>
@@ -265,7 +269,7 @@
 
         <!-- 保存按钮 -->
         <div class="action-bar">
-          <button class="btn btn-outline">恢复默认</button>
+          <button class="btn btn-outline" @click="resetToDefault">恢复默认</button>
           <button class="btn btn-primary" @click="saveSettings">💾 保存设置</button>
         </div>
       </div>
@@ -280,9 +284,46 @@ import { getSettings, updateSettings, testEmailConfig as testEmailApi } from '@/
 
 const activeTab = ref('general')
 const loading = ref(false)
+const logoInput = ref(null)
+
+// Default settings
+const defaultSettings = {
+  platformName: '集团内部培训平台',
+  copyright: '© 2026 某某集团 版权所有',
+  timezone: 'Asia/Shanghai',
+  testEmail: '',
+  smtp: {
+    host: 'smtp.company.com',
+    port: '465',
+    from: 'training@company.com',
+    username: '',
+    password: '',
+  },
+  security: {
+    forcePasswordChange: true,
+    loginLockout: true,
+    passwordComplexity: true,
+    screenRecordDetection: true,
+    tokenExpiry: 30,
+  },
+  video: {
+    allowedFormats: 'mp4,avi,mov,wmv',
+    maxSize: 2048,
+    transcodeResolution: '1080p',
+    encryption: true,
+    watermark: false,
+  },
+  notification: {
+    trainingStart: true,
+    deadlineReminder: true,
+    trainingComplete: true,
+    examResult: true,
+  },
+}
 
 const settings = reactive({
   platformName: '集团内部培训平台',
+  platformLogo: '',
   copyright: '© 2026 某某集团 版权所有',
   timezone: 'Asia/Shanghai',
   testEmail: '',
@@ -326,6 +367,7 @@ async function fetchSettings() {
     if (res.code === 0) {
       const data = res.data || {}
       settings.platformName = data.platform_name || '集团内部培训平台'
+      settings.platformLogo = data.platform_logo || ''
       settings.copyright = data.copyright || '© 2026 某某集团 版权所有'
       settings.timezone = data.timezone || 'Asia/Shanghai'
       settings.smtp.host = data.smtp_host || 'smtp.company.com'
@@ -359,6 +401,7 @@ async function saveSettings() {
   try {
     const data = {
       platform_name: settings.platformName,
+      platform_logo: settings.platformLogo,
       copyright: settings.copyright,
       timezone: settings.timezone,
       smtp_host: settings.smtp.host,
@@ -392,6 +435,45 @@ async function saveSettings() {
     ElMessage.error('保存失败')
     console.error('Failed to save settings:', error)
   }
+}
+
+function resetToDefault() {
+  settings.platformName = defaultSettings.platformName
+  settings.copyright = defaultSettings.copyright
+  settings.timezone = defaultSettings.timezone
+  settings.smtp = { ...defaultSettings.smtp }
+  settings.security = { ...defaultSettings.security }
+  settings.video = { ...defaultSettings.video }
+  settings.notification = { ...defaultSettings.notification }
+  ElMessage.success('已恢复默认设置')
+}
+
+function triggerLogoUpload() {
+  logoInput.value?.click()
+}
+
+function handleLogoUpload(event) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error('请上传图片文件')
+    return
+  }
+
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage.error('图片大小不能超过2MB')
+    return
+  }
+
+  // Preview the image
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    settings.platformLogo = e.target.result
+  }
+  reader.readAsDataURL(file)
+
+  ElMessage.success('Logo 已选择，请在保存设置后生效')
 }
 
 async function handleTestEmailConfig() {

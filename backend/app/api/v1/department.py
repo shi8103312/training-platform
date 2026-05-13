@@ -36,7 +36,11 @@ def _build_department_tree(
             tree.append(
                 DepartmentTreeResponse(
                     dept_id=dept.dept_id,
+                    dept_code=dept.dept_code,
                     dept_name=dept.dept_name,
+                    parent_id=dept.parent_id,
+                    sort_order=dept.sort_order,
+                    status=dept.status,
                     dept_level=dept.dept_level,
                     children=children,
                 )

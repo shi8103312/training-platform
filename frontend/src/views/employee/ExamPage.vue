@@ -322,7 +322,11 @@ async function handleSubmit() {
 }
 
 function handleBack() {
-  router.push(`/training/${route.params.id}`)
+  if (examInfo.value?.project_id) {
+    router.push(`/training/${examInfo.value.project_id}`)
+  } else {
+    router.push('/exam-history')
+  }
 }
 
 onMounted(async () => {

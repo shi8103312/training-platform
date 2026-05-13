@@ -169,9 +169,19 @@ async function fetchDashboardData() {
 
     for (const project of projects) {
       try {
-        const progressRes = await trainingStore.fetchProgress(project.project_id)
-        const progress = progressRes?.data
-        const progressPct = progress?.overall_status === 2 ? 100 : (progress?.overall_status === 1 ? 50 : 0)
+        const progress = await trainingStore.fetchProgress(project.project_id)
+
+        // Calculate actual progress percentage based on materials
+        const materials = progress?.materials || []
+        let progressPct = 0
+        if (materials.length > 0) {
+          const totalProgress = materials.reduce((sum, m) => sum + (m.progress || 0), 0)
+          progressPct = Math.round(totalProgress / materials.length)
+        } else if (progress?.overall_status === 2) {
+          progressPct = 100
+        }
+
+        const completedCount = materials.filter(m => m.is_completed).length
 
         if (progressPct >= 100) {
           completed++
@@ -179,8 +189,8 @@ async function fetchDashboardData() {
           inProgress.push({
             ...project,
             progress: progressPct,
-            materialCompleted: progress?.materials?.filter(m => m.is_completed).length || 0,
-            materialTotal: progress?.materials?.length || 0,
+            materialCompleted: completedCount,
+            materialTotal: materials.length,
           })
         }
       } catch (e) {

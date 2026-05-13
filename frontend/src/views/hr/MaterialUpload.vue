@@ -67,6 +67,7 @@
             :limit="1"
             :on-change="handleFileChange"
             :file-list="fileList"
+            :disabled="uploading"
           >
             <el-button type="primary">选择文件</el-button>
             <template #tip>
@@ -77,10 +78,15 @@
             </template>
           </el-upload>
         </el-form-item>
+
+        <el-form-item v-if="uploading" label="上传进度">
+          <el-progress :percentage="uploadPercentage" :stroke-width="12" />
+          <span class="upload-progress-text">{{ uploadProgressText }}</span>
+        </el-form-item>
       </el-form>
 
       <template #footer>
-        <el-button @click="showUploadDialog = false">取消</el-button>
+        <el-button @click="showUploadDialog = false" :disabled="uploading">取消</el-button>
         <el-button type="primary" :loading="uploading" @click="handleUpload">上传</el-button>
       </template>
     </el-dialog>
@@ -91,7 +97,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTrainingStore } from '@/stores/training'
-import { uploadMaterial, deleteMaterial } from '@/api/training'
+import { uploadMaterial, uploadMaterialWithProgress, deleteMaterial } from '@/api/training'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Upload } from '@element-plus/icons-vue'
 
@@ -101,6 +107,8 @@ const trainingStore = useTrainingStore()
 
 const loading = ref(false)
 const uploading = ref(false)
+const uploadPercentage = ref(0)
+const uploadProgressText = ref('')
 const project = ref(null)
 const materials = ref([])
 const showUploadDialog = ref(false)
@@ -148,6 +156,9 @@ async function handleUpload() {
     if (!valid) return
 
     uploading.value = true
+    uploadPercentage.value = 0
+    uploadProgressText.value = '准备上传...'
+
     try {
       const formData = new FormData()
       formData.append('project_id', route.params.id)
@@ -156,7 +167,10 @@ async function handleUpload() {
       formData.append('sort_order', uploadForm.value.sort_order)
       formData.append('file', uploadForm.value.file)
 
-      const res = await uploadMaterial(formData)
+      const res = await uploadMaterialWithProgress(formData, (percent, text) => {
+        uploadPercentage.value = percent
+        uploadProgressText.value = text
+      })
 
       if (res.code === 0) {
         ElMessage.success('上传成功')
@@ -174,6 +188,8 @@ async function handleUpload() {
       }
     } finally {
       uploading.value = false
+      uploadPercentage.value = 0
+      uploadProgressText.value = ''
     }
   })
 }
@@ -232,5 +248,11 @@ onMounted(() => {
 
 .el-upload__tip p {
   margin: 4px 0;
+}
+
+.upload-progress-text {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #909399;
 }
 </style>

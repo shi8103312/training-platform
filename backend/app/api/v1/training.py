@@ -164,6 +164,7 @@ async def get_project_detail(
                     "material_type": m.material_type,
                     "material_type_text": "视频" if m.is_video else "文档",
                     "duration": m.duration,
+                    "file_size": m.file_size,
                     "thumbnail": m.thumbnail_path,
                     "sort_order": m.sort_order,
                     "storage_path": m.storage_path,

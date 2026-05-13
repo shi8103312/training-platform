@@ -251,8 +251,17 @@ async function fetchProjects() {
     for (const project of projects.value) {
       try {
         const res = await trainingStore.fetchProgress(project.project_id)
-        if (res && res.data) {
-          project.userProgress = res.data.overall_status === 2 ? 100 : (res.data.overall_status === 1 ? 50 : 0)
+        if (res && res.materials !== undefined) {
+          // Calculate actual progress percentage based on materials
+          const materials = res.materials || []
+          if (materials.length > 0) {
+            const totalProgress = materials.reduce((sum, m) => sum + (m.progress || 0), 0)
+            project.userProgress = Math.round(totalProgress / materials.length)
+          } else if (res.overall_status === 2) {
+            project.userProgress = 100
+          } else {
+            project.userProgress = 0
+          }
         }
       } catch (e) {
         project.userProgress = 0

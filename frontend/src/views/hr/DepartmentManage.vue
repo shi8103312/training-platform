@@ -29,6 +29,10 @@
             <el-tag size="small" :type="data.status === 1 ? 'success' : 'info'">
               {{ data.status === 1 ? '启用' : '禁用' }}
             </el-tag>
+            <span class="node-actions">
+              <el-button type="primary" link size="small" @click="handleEdit(data)">编辑</el-button>
+              <el-button type="danger" link size="small" @click="handleDelete(data)">删除</el-button>
+            </span>
           </span>
         </template>
       </el-tree>
@@ -105,13 +109,50 @@
         <el-button type="primary" :loading="creating" @click="handleCreate">创建</el-button>
       </template>
     </el-dialog>
+
+    <!-- 编辑部门对话框 -->
+    <el-dialog v-model="showEditDialog" title="编辑部门" width="500px">
+      <el-form :model="editForm" label-width="100px">
+        <el-form-item label="部门编码" required>
+          <el-input v-model="editForm.dept_code" placeholder="如：DEPT001" />
+        </el-form-item>
+        <el-form-item label="部门名称" required>
+          <el-input v-model="editForm.dept_name" placeholder="请输入部门名称" />
+        </el-form-item>
+        <el-form-item label="上级部门">
+          <el-select v-model="editForm.parent_id" placeholder="无上级部门" clearable>
+            <el-option label="（无上级部门）" value="" />
+            <el-option
+              v-for="dept in flatDepartmentList"
+              :key="dept.dept_id"
+              :label="dept.dept_name"
+              :value="dept.dept_id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="排序">
+          <el-input-number v-model="editForm.sort_order" :min="0" :max="9999" />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-radio-group v-model="editForm.status">
+            <el-radio :value="1">启用</el-radio>
+            <el-radio :value="0">禁用</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="showEditDialog = false">取消</el-button>
+        <el-button type="primary" :loading="updating" @click="handleUpdate">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getDepartmentTree, importDepartments, createDepartment } from '@/api/department'
-import { ElMessage } from 'element-plus'
+import { getDepartmentTree, importDepartments, createDepartment, updateDepartment, deleteDepartment } from '@/api/department'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Plus } from '@element-plus/icons-vue'
 
 const departmentTree = ref([])
@@ -130,6 +171,17 @@ const createForm = ref({
   sort_order: 0,
   status: 1,
 })
+
+const showEditDialog = ref(false)
+const editForm = ref({
+  dept_code: '',
+  dept_name: '',
+  parent_id: '',
+  sort_order: 0,
+  status: 1,
+})
+const editingId = ref('')
+const updating = ref(false)
 
 // Flatten department tree for parent selection
 const flatDepartmentList = computed(() => {
@@ -199,6 +251,71 @@ async function handleCreate() {
     ElMessage.error('创建失败')
   } finally {
     creating.value = false
+  }
+}
+
+function handleEdit(data) {
+  editingId.value = data.dept_id
+  editForm.value = {
+    dept_code: data.dept_code,
+    dept_name: data.dept_name,
+    parent_id: data.parent_id || '',
+    sort_order: data.sort_order || 0,
+    status: data.status,
+  }
+  showEditDialog.value = true
+}
+
+async function handleUpdate() {
+  if (!editForm.value.dept_code) {
+    ElMessage.warning('请输入部门编码')
+    return
+  }
+  if (!editForm.value.dept_name) {
+    ElMessage.warning('请输入部门名称')
+    return
+  }
+
+  updating.value = true
+  try {
+    const res = await updateDepartment(editingId.value, editForm.value)
+    if (res.code === 0) {
+      ElMessage.success('更新成功')
+      showEditDialog.value = false
+      fetchDepartmentTree()
+    } else {
+      ElMessage.error(res.message || '更新失败')
+    }
+  } catch (error) {
+    ElMessage.error('更新失败')
+  } finally {
+    updating.value = false
+  }
+}
+
+async function handleDelete(data) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除部门"${data.dept_name}"吗？删除后无法恢复。`,
+      '删除确认',
+      {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+
+    const res = await deleteDepartment(data.dept_id)
+    if (res.code === 0) {
+      ElMessage.success('删除成功')
+      fetchDepartmentTree()
+    } else {
+      ElMessage.error(res.message || '删除失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败')
+    }
   }
 }
 

@@ -1,6 +1,6 @@
 <template>
   <div class="training-detail">
-    <a class="back-btn" @click="$router.back()">← 返回培训列表</a>
+    <a class="back-btn" @click="$router.push('/training')">← 返回培训列表</a>
 
     <!-- 项目详情头部 -->
     <div class="detail-header" v-if="project">
@@ -89,22 +89,31 @@
           <div class="exam-section">
             <div class="exam-header">
               <span class="exam-title">{{ exam.title || '培训结业考试' }}</span>
-              <span class="exam-tag">必须通过</span>
+              <span class="exam-tag" :class="{ passed: exam.has_passed }">{{ exam.has_passed ? '已通过' : '未通过' }}</span>
             </div>
             <div class="exam-info">
               <p>🎯 及格分数：{{ exam.passing_score || 60 }}分</p>
-              <p>⏱️ 考试时长：{{ exam.duration || 60 }}分钟</p>
-              <p>🔄 允许次数：{{ exam.allow_retry !== false ? '无限' : '1次' }}</p>
-              <p>📌 当前状态：<span :style="{ color: userProgress >= 100 ? '#52c41a' : '#fa8c16' }">
-                {{ userProgress >= 100 ? '可参加考试' : '需完成全部材料后参加' }}
-              </span></p>
+              <p>⏱️ 考试时长：{{ exam.duration_minutes || 60 }}分钟</p>
+              <p>🔄 允许次数：{{ exam.attempt_limit || 1 }}次</p>
+              <p>📊 考试次数：已考{{ exam.attempt_count || 0 }}次，剩余{{ exam.remaining_attempts || 0 }}次</p>
+              <p v-if="exam.best_score != null">🏆 最高成绩：{{ exam.best_score }}分</p>
+              <p>📌 当前状态：
+                <span v-if="exam.has_passed" style="color: #52c41a">已通过</span>
+                <span v-else-if="userProgress < 100" style="color: #fa8c16">需完成全部材料后参加</span>
+                <span v-else-if="exam.remaining_attempts <= 0" style="color: #f56c6c">已无考试机会</span>
+                <span v-else style="color: #1890ff">可参加考试</span>
+              </p>
             </div>
-            <button
-              class="btn btn-primary exam-btn"
-              :disabled="userProgress < 100"
-            >
-              {{ userProgress >= 100 ? '参加考试' : '完成学习后参加考试' }}
-            </button>
+            <div class="exam-actions">
+              <button
+                class="btn btn-primary exam-btn"
+                :disabled="userProgress < 100 || exam.has_passed || exam.remaining_attempts <= 0"
+                @click="goExam"
+              >
+                {{ exam.has_passed ? '已通过' : userProgress < 100 ? '完成学习后参加' : exam.remaining_attempts <= 0 ? '无考试机会' : '参加考试' }}
+              </button>
+              <el-button link @click="goToExamHistory">查看考试成绩</el-button>
+            </div>
           </div>
         </div>
 
@@ -279,6 +288,7 @@ import { useTrainingStore } from '@/stores/training'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getComments, createComment, deleteComment, likeComment, unlikeComment, searchUsers } from '@/api/comment'
+import { getExamDetail } from '@/api/exam'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 
@@ -467,8 +477,12 @@ function openMaterial(material) {
 
 function goExam() {
   if (exam.value && userProgress.value >= 100) {
-    router.push(`/exam/${route.params.id}`)
+    router.push(`/exam/${exam.value.exam_id}`)
   }
+}
+
+function goToExamHistory() {
+  router.push('/exam-history')
 }
 
 async function fetchProjectDetail() {
@@ -481,6 +495,18 @@ async function fetchProjectDetail() {
       is_video: m.material_type === 1,
     }))
     exam.value = trainingStore.currentProject?.exam || null
+
+    // Fetch full exam details if there's an exam
+    if (exam.value?.exam_id) {
+      try {
+        const examRes = await getExamDetail(exam.value.exam_id)
+        if (examRes.code === 0) {
+          exam.value = examRes.data
+        }
+      } catch (error) {
+        console.error('Failed to fetch exam detail:', error)
+      }
+    }
   } catch (error) {
     console.error('Failed to fetch project detail:', error)
   } finally {
@@ -1062,6 +1088,10 @@ watch(
   font-size: 12px;
 }
 
+.exam-tag.passed {
+  background: #52c41a;
+}
+
 .exam-info {
   font-size: 13px;
   color: #666;
@@ -1070,6 +1100,12 @@ watch(
 
 .exam-info p {
   margin-bottom: 6px;
+}
+
+.exam-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .exam-btn {

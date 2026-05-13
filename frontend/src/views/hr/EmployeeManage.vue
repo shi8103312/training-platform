@@ -55,11 +55,15 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="80">
+        <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-              {{ row.status === 1 ? '启用' : '禁用' }}
-            </el-tag>
+            <el-switch
+              v-model="row.status"
+              :active-value="1"
+              :inactive-value="0"
+              @change="handleStatusChange(row)"
+              :disabled="row.user_id === currentUserId"
+            />
           </template>
         </el-table-column>
         <el-table-column label="操作" width="150" fixed="right">
@@ -261,6 +265,23 @@ async function handleDelete(row) {
     }
   } catch {
     // Cancelled
+  }
+}
+
+async function handleStatusChange(row) {
+  try {
+    const res = await updateUser(row.user_id, { status: row.status })
+    if (res.code === 0) {
+      ElMessage.success(`员工已${row.status === 1 ? '启用' : '禁用'}`)
+    } else {
+      ElMessage.error(res.message || '状态更新失败')
+      // Revert the change
+      row.status = row.status === 1 ? 0 : 1
+    }
+  } catch {
+    ElMessage.error('状态更新失败')
+    // Revert the change
+    row.status = row.status === 1 ? 0 : 1
   }
 }
 

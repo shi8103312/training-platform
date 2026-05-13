@@ -49,7 +49,11 @@ class DepartmentResponse(BaseModel):
 
 class DepartmentTreeResponse(BaseModel):
     dept_id: str
+    dept_code: str
     dept_name: str
+    parent_id: Optional[str] = None
+    sort_order: int = 0
+    status: int = 1
     dept_level: int
     children: List["DepartmentTreeResponse"] = []
 
