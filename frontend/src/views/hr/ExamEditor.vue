@@ -90,6 +90,7 @@
             <el-option :value="1" label="单选题" />
             <el-option :value="2" label="多选题" />
             <el-option :value="3" label="判断题" />
+            <el-option :value="4" label="简答题" />
           </el-select>
         </el-form-item>
 
@@ -101,7 +102,7 @@
           <el-input-number v-model="questionForm.score" :min="1" :max="100" />
         </el-form-item>
 
-        <el-form-item label="选项" v-if="questionForm.question_type !== 3">
+        <el-form-item label="选项" v-if="questionForm.question_type !== 3 && questionForm.question_type !== 4">
           <div class="options-editor">
             <div v-for="(opt, idx) in questionForm.options" :key="idx" class="option-row">
               <el-input v-model="opt.key" style="width: 60px" placeholder="选项" />
@@ -119,10 +120,11 @@
           <el-checkbox-group v-else-if="questionForm.question_type === 2" v-model="questionForm.correct_answer">
             <el-checkbox v-for="opt in questionForm.options" :key="opt.key" :value="opt.key" />
           </el-checkbox-group>
-          <el-radio-group v-else v-model="questionForm.correct_answer">
+          <el-radio-group v-else-if="questionForm.question_type === 3" v-model="questionForm.correct_answer">
             <el-radio value="true">正确</el-radio>
             <el-radio value="false">错误</el-radio>
           </el-radio-group>
+          <el-input v-else-if="questionForm.question_type === 4" v-model="questionForm.correct_answer" type="textarea" :rows="3" placeholder="请输入正确答案" />
         </el-form-item>
 
         <el-form-item label="答案解析">
@@ -194,7 +196,7 @@ const questionRules = {
 }
 
 function getQuestionTypeName(type) {
-  const names = { 1: '单选题', 2: '多选题', 3: '判断题' }
+  const names = { 1: '单选题', 2: '多选题', 3: '判断题', 4: '简答题' }
   return names[type] || '未知'
 }
 
@@ -243,14 +245,20 @@ function handleAddQuestionConfirm() {
       explanation: questionForm.explanation,
     }
 
-    if (questionForm.question_type !== 3) {
+    if (questionForm.question_type === 4) {
+      // 简答题
+      q.options = null
+      q.correct_answer = questionForm.correct_answer
+    } else if (questionForm.question_type === 3) {
+      // 判断题
+      q.options = null
+      q.correct_answer = questionForm.correct_answer
+    } else {
+      // 单选/多选
       q.options = questionForm.options.filter((o) => o.text)
       q.correct_answer = questionForm.question_type === 2
         ? JSON.stringify(questionForm.correct_answer)
         : questionForm.correct_answer
-    } else {
-      q.options = null
-      q.correct_answer = questionForm.correct_answer
     }
 
     form.questions.push(q)

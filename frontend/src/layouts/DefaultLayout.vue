@@ -37,7 +37,7 @@
 </template>
 
 <script setup>
-import { onMounted, onActivated } from 'vue'
+import { onMounted, onActivated, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useNotificationStore } from '@/stores/notification'
@@ -68,11 +68,16 @@ function handleLogout() {
 
 onMounted(() => {
   notificationStore.fetchUnreadCount()
+  notificationStore.startPolling(30000) // Poll every 30 seconds
 })
 
 // Refresh when coming back from notification page
 onActivated(() => {
   notificationStore.fetchUnreadCount()
+})
+
+onUnmounted(() => {
+  notificationStore.stopPolling()
 })
 </script>
 

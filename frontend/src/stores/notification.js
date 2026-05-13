@@ -1,18 +1,33 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getMyNotifications } from '@/api/notification'
+import { getUnreadCount } from '@/api/notification'
 
 export const useNotificationStore = defineStore('notification', () => {
   const unreadCount = ref(0)
+  let pollTimer = null
 
   async function fetchUnreadCount() {
     try {
-      const res = await getMyNotifications({ page: 1, page_size: 100 })
+      const res = await getUnreadCount()
       if (res.code === 0) {
-        unreadCount.value = res.data.filter(n => n.read_status === 0).length
+        unreadCount.value = res.data.count
       }
     } catch (error) {
       console.error('Failed to fetch unread count:', error)
+    }
+  }
+
+  function startPolling(intervalMs = 30000) {
+    // Poll every 30 seconds
+    if (pollTimer) return
+    fetchUnreadCount()
+    pollTimer = setInterval(fetchUnreadCount, intervalMs)
+  }
+
+  function stopPolling() {
+    if (pollTimer) {
+      clearInterval(pollTimer)
+      pollTimer = null
     }
   }
 
@@ -26,5 +41,7 @@ export const useNotificationStore = defineStore('notification', () => {
     unreadCount,
     fetchUnreadCount,
     decrementUnread,
+    startPolling,
+    stopPolling,
   }
 })

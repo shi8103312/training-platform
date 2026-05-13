@@ -131,6 +131,7 @@ class ExamAttempt(Base):
     score = Column(INT, nullable=True, comment="Score achieved")
     passed = Column(TINYINT, nullable=True, comment="Passed: 0=Failed, 1=Passed")
     answers = Column(JSON, nullable=True, comment="Answer details: [{question_id, answer, correct}]")
+    violation_count = Column(INT, nullable=False, default=0, comment="Tab switch violation count")
     status = Column(
         TINYINT, nullable=False, default=0, comment="Status: 0=In progress, 1=Submitted, 2=Auto submitted due to timeout"
     )

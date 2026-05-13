@@ -296,6 +296,7 @@ async def start_exam(
 async def save_attempt(
     attempt_id: str,
     answers: List[dict],
+    violation_count: Optional[int] = Query(0, ge=0),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -320,8 +321,9 @@ async def save_attempt(
             "message": "考试已提交",
         }
 
-    # Update answers
+    # Update answers and violation count
     attempt.answers = json.dumps(answers)
+    attempt.violation_count = violation_count
     db.commit()
 
     return {
@@ -334,6 +336,7 @@ async def save_attempt(
 async def submit_exam(
     attempt_id: str,
     answers: Optional[List[dict]] = None,
+    violation_count: Optional[int] = Query(0, ge=0),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -410,6 +413,7 @@ async def submit_exam(
     attempt.time_spent = time_spent
     attempt.status = 1
     attempt.answers = json.dumps(submitted_answers)
+    attempt.violation_count = violation_count
 
     db.commit()
 

@@ -22,19 +22,19 @@ export function startExam(examId) {
   })
 }
 
-export function saveExamAttempt(attemptId, answers) {
+export function saveExamAttempt(attemptId, answers, violationCount = 0) {
   return request({
     url: `/v1/exam/attempt/${attemptId}/save`,
     method: 'post',
-    data: { answers },
+    data: { answers, violation_count: violationCount },
   })
 }
 
-export function submitExam(attemptId, answers) {
+export function submitExam(attemptId, answers, violationCount = 0) {
   return request({
     url: `/v1/exam/attempt/${attemptId}/submit`,
     method: 'post',
-    data: { answers },
+    data: { answers, violation_count: violationCount },
   })
 }
 

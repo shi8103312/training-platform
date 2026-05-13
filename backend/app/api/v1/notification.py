@@ -20,6 +20,27 @@ from ...schemas.training import SendNotificationRequest
 router = APIRouter(prefix="/notification", tags=["通知"])
 
 
+@router.get("/unread-count")
+async def get_unread_count(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get unread notification count (for polling).
+    """
+    count = db.query(Notification).filter(
+        Notification.user_id == current_user.user_id,
+        Notification.read_status == 0,
+    ).count()
+
+    return {
+        "code": 0,
+        "data": {
+            "count": count,
+        },
+    }
+
+
 @router.post("/send")
 async def send_notification(
     notif_data: SendNotificationRequest,

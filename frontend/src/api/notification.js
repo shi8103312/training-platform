@@ -37,3 +37,10 @@ export function markNotificationRead(id) {
     method: 'put',
   })
 }
+
+export function getUnreadCount() {
+  return request({
+    url: '/v1/notification/unread-count',
+    method: 'get',
+  })
+}

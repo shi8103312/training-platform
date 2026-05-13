@@ -4,6 +4,12 @@
       返回
     </el-button>
 
+    <!-- 违规警告 -->
+    <div v-if="showViolationWarning" class="violation-warning">
+      <el-icon color="#f56c6c" :size="20"><Warning /></el-icon>
+      <span>检测到切换标签页！违规次数 +1（当前：{{ violationCount }}次）</span>
+    </div>
+
     <el-card v-if="examStarted" class="exam-card">
       <template #header>
         <div class="exam-header">
@@ -71,6 +77,16 @@
             <el-radio value="true">正确</el-radio>
             <el-radio value="false">错误</el-radio>
           </el-radio-group>
+
+          <!-- Essay Question -->
+          <el-input
+            v-else-if="question.question_type === 4"
+            type="textarea"
+            :rows="4"
+            :model-value="answers[question.question_id] || ''"
+            @update:model-value="setAnswer(question.question_id, $event)"
+            placeholder="请输入答案..."
+          />
         </div>
       </div>
 
@@ -154,7 +170,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getExamDetail, startExam, saveExamAttempt, submitExam } from '@/api/exam'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, Clock } from '@element-plus/icons-vue'
+import { ArrowLeft, Clock, Warning } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -168,6 +184,11 @@ const timeRemaining = ref(0)
 const timer = ref(null)
 const showResult = ref(false)
 const result = ref(null)
+
+// 违规检测
+const violationCount = ref(0)
+const showViolationWarning = ref(false)
+let violationTimer = null
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60)
@@ -207,11 +228,31 @@ const debouncedSave = async () => {
   saveTimer = setTimeout(async () => {
     if (!attemptId.value) return
     try {
-      await saveExamAttempt(attemptId.value, formatAnswers())
+      await saveExamAttempt(attemptId.value, formatAnswers(), violationCount.value)
     } catch (error) {
       console.error('Failed to save:', error)
     }
   }, 3000)
+}
+
+// 标签页切换检测
+function handleVisibilityChange() {
+  if (document.hidden && examStarted.value) {
+    // 用户切换走了
+    violationCount.value++
+    showViolationWarning.value = true
+
+    // 3秒后自动隐藏警告
+    if (violationTimer) clearTimeout(violationTimer)
+    violationTimer = setTimeout(() => {
+      showViolationWarning.value = false
+    }, 3000)
+
+    // 立即保存违规次数
+    if (attemptId.value) {
+      saveExamAttempt(attemptId.value, formatAnswers(), violationCount.value)
+    }
+  }
 }
 
 function formatAnswers() {
@@ -270,7 +311,7 @@ async function handleSubmit() {
   }
 
   try {
-    const res = await submitExam(attemptId.value, formatAnswers())
+    const res = await submitExam(attemptId.value, formatAnswers(), violationCount.value)
     if (res.code === 0) {
       result.value = res.data
       showResult.value = true
@@ -292,10 +333,15 @@ onMounted(async () => {
     ElMessage.error('考试不存在或已删除')
     router.push('/exam-history')
   }
+
+  // 注册标签页切换检测
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onUnmounted(() => {
   if (timer.value) clearInterval(timer.value)
+  if (violationTimer) clearTimeout(violationTimer)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 
@@ -306,6 +352,36 @@ onUnmounted(() => {
 
 .back-btn {
   margin-bottom: 20px;
+}
+
+.violation-warning {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff2f0;
+  border: 1px solid #ffa39e;
+  border-radius: 8px;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #f56c6c;
+  font-size: 14px;
+  z-index: 9999;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 .exam-header {
