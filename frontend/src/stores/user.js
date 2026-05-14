@@ -22,7 +22,7 @@ export const useUserStore = defineStore('user', () => {
   })
 
   const isLoggedIn = computed(() => !!token.value && !isTokenExpired.value)
-  const isHrAdmin = computed(() => userInfo.value?.role === 1)
+  const isHrAdmin = computed(() => userInfo.value?.role === 1 || userInfo.value?.role === 0)
 
   async function checkAuth() {
     if (!token.value) return
