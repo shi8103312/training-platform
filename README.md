@@ -129,6 +129,11 @@ docker-compose up -d
 - [x] 全系统组件主题适配
 - [x] 主题选择器组件 (Header/Sidebar)
 
+### 角色权限
+- [x] 3种角色：超级管理员(0)、HR管理员(1)、员工(2)
+- [x] RBAC权限控制，超级管理员拥有所有HR管理员权限
+- [x] 角色验证通过 `require_hr_admin()` / `require_super_admin()` 依赖注入
+
 ### 安全加固
 - [x] JWT 密钥安全生成
 - [x] 登录限流 (5次/分钟)
