@@ -105,7 +105,8 @@ def require_super_admin():
 
 def require_hr_admin():
     """
-    Dependency that requires HR_ADMIN role.
+    Dependency that requires HR_ADMIN or SUPER_ADMIN role.
+    SUPER_ADMIN has all HR_ADMIN privileges.
     """
     from ..models.user import Role
-    return require_role(Role.HR_ADMIN)
+    return require_role(Role.SUPER_ADMIN, Role.HR_ADMIN)
