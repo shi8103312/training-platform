@@ -160,7 +160,7 @@ async function handleLogin() {
 
 .login-page {
   font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--theme-gradient);
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -216,7 +216,7 @@ async function handleLogin() {
 
 .form-item input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--theme-primary);
 }
 
 .remember-row {
@@ -241,7 +241,7 @@ async function handleLogin() {
 }
 
 .forgot-link {
-  color: #667eea;
+  color: var(--theme-primary);
   font-size: 14px;
   text-decoration: none;
 }
@@ -253,7 +253,7 @@ async function handleLogin() {
 .login-btn {
   width: 100%;
   height: 46px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--theme-gradient);
   color: #fff;
   border: none;
   border-radius: 6px;

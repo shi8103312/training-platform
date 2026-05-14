@@ -108,12 +108,14 @@
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useTrainingStore } from '@/stores/training'
+import { useThemeStore } from '@/stores/theme'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 
 dayjs.extend(relativeTime)
 
 const trainingStore = useTrainingStore()
+const themeStore = useThemeStore()
 
 const loading = ref(false)
 const activeTab = ref('all')
@@ -188,7 +190,7 @@ const filteredProjects = computed(() => {
 
 function getCoverGradient(project) {
   const gradients = [
-    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    themeStore.themes[themeStore.currentTheme]?.gradient || 'var(--theme-gradient)',
     'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
     'linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%)',
     'linear-gradient(135deg, #52c41a 0%, #73d13d 100%)',
@@ -214,7 +216,7 @@ function getProgressGradient(project) {
   if (project.title.includes('制度')) return '#52c41a'
   if (project.title.includes('沟通')) return '#722ed1'
   if (project.title.includes('数据')) return '#1890ff'
-  return 'linear-gradient(90deg, #667eea, #764ba2)'
+  return themeStore.themes[themeStore.currentTheme]?.gradient || 'var(--theme-gradient)'
 }
 
 function getDeadlineText(deadline) {
@@ -334,7 +336,7 @@ onMounted(() => {
 .filter-btn {
   height: 36px;
   padding: 0 20px;
-  background: #667eea;
+  background: var(--theme-primary);
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -364,11 +366,11 @@ onMounted(() => {
 }
 
 .tab-item:hover {
-  color: #667eea;
+  color: var(--theme-primary);
 }
 
 .tab-item.active {
-  background: #667eea;
+  background: var(--theme-primary);
   color: #fff;
 }
 
@@ -467,7 +469,7 @@ onMounted(() => {
 
 .progress-bar .fill {
   height: 100%;
-  background: linear-gradient(90deg, #667eea, #764ba2);
+  background: var(--theme-gradient);
   border-radius: 3px;
   transition: width 0.5s;
 }

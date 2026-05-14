@@ -368,7 +368,7 @@ onMounted(async () => {
 .form-item select:focus,
 .form-item textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--theme-primary);
 }
 
 .form-item textarea {
@@ -471,7 +471,7 @@ onMounted(async () => {
 .selected-count {
   margin-top: 10px;
   font-size: 13px;
-  color: #667eea;
+  color: var(--theme-primary);
 }
 
 .schedule-options {
@@ -490,11 +490,11 @@ onMounted(async () => {
 }
 
 .schedule-option:hover {
-  border-color: #667eea;
+  border-color: var(--theme-primary);
 }
 
 .schedule-option.selected {
-  border-color: #667eea;
+  border-color: var(--theme-primary);
   background: #e6f0ff;
 }
 
@@ -538,7 +538,7 @@ onMounted(async () => {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--theme-gradient);
   color: #fff;
 }
 
@@ -549,8 +549,8 @@ onMounted(async () => {
 
 .btn-outline {
   background: #fff;
-  color: #667eea;
-  border: 1px solid #667eea;
+  color: var(--theme-primary);
+  border: 1px solid var(--theme-primary);
 }
 
 .btn-outline:hover {

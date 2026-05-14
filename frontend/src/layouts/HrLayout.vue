@@ -40,6 +40,9 @@
         </nav>
 
         <div class="sidebar-footer">
+          <div class="theme-section">
+            <ThemeSwitcher />
+          </div>
           <div class="user-card">
             <div class="user-avatar">👔</div>
             <div class="user-details">
@@ -76,6 +79,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessageBox } from 'element-plus'
+import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -175,7 +179,7 @@ function handleLogout() {
 .nav-item.active {
   background: rgba(102, 126, 234, 0.3);
   color: #fff;
-  border-left: 3px solid #667eea;
+  border-left: 3px solid var(--theme-primary);
 }
 
 .nav-item .icon {
@@ -189,6 +193,10 @@ function handleLogout() {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.theme-section {
+  margin-bottom: 12px;
+}
+
 .user-card {
   display: flex;
   align-items: center;
@@ -199,7 +207,7 @@ function handleLogout() {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #667eea;
+  background: var(--theme-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -288,8 +296,8 @@ function handleLogout() {
 
 .btn-outline {
   background: #fff;
-  color: #667eea;
-  border: 1px solid #667eea;
+  color: var(--theme-primary);
+  border: 1px solid var(--theme-primary);
 }
 
 .btn-outline:hover {

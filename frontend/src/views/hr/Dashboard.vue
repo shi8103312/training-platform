@@ -107,9 +107,9 @@
             <td>
               <div style="display: flex; align-items: center; gap: 8px">
                 <div style="flex: 1; height: 6px; background: #f0f0f0; border-radius: 3px">
-                  <div :style="{ width: getProjectStatsData(project.project_id).completion_rate + '%', height: '100%', background: 'linear-gradient(90deg, #667eea, #764ba2)', borderRadius: '3px' }"></div>
+                  <div :style="{ width: getProjectStatsData(project.project_id).completion_rate + '%', height: '100%', background: 'var(--theme-gradient)', borderRadius: '3px' }"></div>
                 </div>
-                <span style="font-size: 13px; color: #667eea">{{ getProjectStatsData(project.project_id).completion_rate || 0 }}%</span>
+                <span style="font-size: 13px; color: var(--theme-primary)">{{ getProjectStatsData(project.project_id).completion_rate || 0 }}%</span>
               </div>
             </td>
             <td>{{ project.deadline ? formatDate(project.deadline) : '--' }}</td>
@@ -121,7 +121,7 @@
             <td>
               <a
                 href="javascript:void(0)"
-                style="color: #667eea; text-decoration: none"
+                style="color: var(--theme-primary); text-decoration: none"
                 @click="$router.push(`/hr/progress/${project.project_id}`)"
               >
                 详情
@@ -350,7 +350,7 @@ onMounted(async () => {
 
 .bar {
   width: 30px;
-  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+  background: var(--theme-gradient);
   border-radius: 4px 4px 0 0;
   animation: grow 1s ease-out;
 }
@@ -476,7 +476,7 @@ onMounted(async () => {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--theme-gradient);
   color: #fff;
 }
 
@@ -487,8 +487,8 @@ onMounted(async () => {
 
 .btn-outline {
   background: #fff;
-  color: #667eea;
-  border: 1px solid #667eea;
+  color: var(--theme-primary);
+  border: 1px solid var(--theme-primary);
 }
 
 .btn-outline:hover {

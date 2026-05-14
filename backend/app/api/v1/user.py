@@ -14,7 +14,7 @@ from ...models.training import Project, Progress
 from ...api.deps import get_current_user, require_hr_admin
 from ...core.permissions import Role
 from ...core.security import hash_password
-from ...schemas.auth import UserInfo, UserCreate, UserUpdate
+from ...schemas.auth import UserInfo, UserCreate, UserUpdate, UserPreferencesUpdate
 
 router = APIRouter(prefix="/user", tags=["用户"])
 
@@ -50,7 +50,37 @@ async def get_user_info(
             "dept_name": dept_name,
             "dept_path": dept_path,
             "avatar": current_user.avatar,
+            "preferences": current_user.preferences or {},
         },
+    }
+
+
+@router.put("/preferences")
+async def update_user_preferences(
+    prefs_data: UserPreferencesUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Update current user's preferences (e.g., theme).
+    """
+    # Get current preferences
+    current_prefs = current_user.preferences or {}
+
+    # Update only provided fields
+    update_data = prefs_data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        if value is not None:
+            current_prefs[key] = value
+
+    # Save back
+    current_user.preferences = current_prefs
+    db.commit()
+
+    return {
+        "code": 0,
+        "message": "偏好设置已更新",
+        "data": current_user.preferences,
     }
 
 

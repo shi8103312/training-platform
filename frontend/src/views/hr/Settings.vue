@@ -535,8 +535,8 @@ onMounted(() => {
 
 .settings-tab.active {
   background: #e6f0ff;
-  color: #667eea;
-  border-left: 3px solid #667eea;
+  color: var(--theme-primary);
+  border-left: 3px solid var(--theme-primary);
 }
 
 .settings-tab .icon {
@@ -595,7 +595,7 @@ onMounted(() => {
 .form-item select:focus,
 .form-item textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--theme-primary);
 }
 
 .form-item .hint {
@@ -691,7 +691,7 @@ onMounted(() => {
 }
 
 input:checked + .slider {
-  background-color: #667eea;
+  background-color: var(--theme-primary);
 }
 
 input:checked + .slider:before {
@@ -712,7 +712,7 @@ input:checked + .slider:before {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--theme-gradient);
   color: #fff;
 }
 
@@ -723,8 +723,8 @@ input:checked + .slider:before {
 
 .btn-outline {
   background: #fff;
-  color: #667eea;
-  border: 1px solid #667eea;
+  color: var(--theme-primary);
+  border: 1px solid var(--theme-primary);
 }
 
 .btn-outline:hover {
@@ -761,7 +761,7 @@ input:checked + .slider:before {
 
 .test-btn {
   background: #f5f7fa;
-  color: #667eea;
+  color: var(--theme-primary);
   border: 1px solid #dcdfe6;
   padding: 8px 16px;
   border-radius: 6px;

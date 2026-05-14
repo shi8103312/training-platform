@@ -252,11 +252,11 @@ onMounted(() => {
 }
 
 .tab-item:hover {
-  color: #667eea;
+  color: var(--theme-primary);
 }
 
 .tab-item.active {
-  background: #667eea;
+  background: var(--theme-primary);
   color: #fff;
 }
 
@@ -370,15 +370,15 @@ onMounted(() => {
 .mark-read-btn {
   padding: 4px 12px;
   background: #fff;
-  border: 1px solid #667eea;
+  border: 1px solid var(--theme-primary);
   border-radius: 4px;
-  color: #667eea;
+  color: var(--theme-primary);
   font-size: 12px;
   cursor: pointer;
 }
 
 .mark-read-btn:hover {
-  background: #667eea;
+  background: var(--theme-primary);
   color: #fff;
 }
 
@@ -427,14 +427,14 @@ onMounted(() => {
   border-radius: 6px;
   font-size: 13px;
   cursor: pointer;
-  border: 1px solid #667eea;
+  border: 1px solid var(--theme-primary);
   background: #fff;
-  color: #667eea;
+  color: var(--theme-primary);
   transition: all 0.3s;
 }
 
 .btn:hover:not(:disabled) {
-  background: #667eea;
+  background: var(--theme-primary);
   color: #fff;
 }
 

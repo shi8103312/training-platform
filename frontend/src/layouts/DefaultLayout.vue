@@ -12,6 +12,7 @@
         </nav>
       </div>
       <div class="header-right">
+        <ThemeSwitcher />
         <el-badge :value="unreadCount" :max="99" class="notification-badge" v-if="unreadCount > 0">
           <span class="notification-icon" @click="goToNotification">🔔</span>
         </el-badge>
@@ -43,6 +44,7 @@ import { useUserStore } from '@/stores/user'
 import { useNotificationStore } from '@/stores/notification'
 import { ElMessageBox, ElBadge } from 'element-plus'
 import { storeToRefs } from 'pinia'
+import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -95,7 +97,7 @@ onUnmounted(() => {
 }
 
 .header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--theme-gradient);
   color: #fff;
   padding: 0 30px;
   height: 64px;

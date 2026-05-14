@@ -1,7 +1,7 @@
 """
 User Model
 """
-from sqlalchemy import Column, String, VARCHAR, DATETIME, ForeignKey, Text, BigInteger
+from sqlalchemy import Column, String, VARCHAR, DATETIME, ForeignKey, Text, BigInteger, JSON
 from sqlalchemy.dialects.mysql import TINYINT
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -25,6 +25,7 @@ class User(Base):
     phone = Column(VARCHAR(20), nullable=True, comment="Phone number")
     role = Column(TINYINT, nullable=False, default=2, comment="Role: 1=HR_ADMIN, 2=EMPLOYEE")
     avatar = Column(VARCHAR(255), nullable=True, comment="Avatar URL")
+    preferences = Column(JSON, nullable=True, comment="User preferences (theme, etc)")
     status = Column(TINYINT, nullable=False, default=1, comment="Status: 0=Disabled, 1=Enabled")
     last_login_time = Column(DATETIME, nullable=True, comment="Last login time")
     last_login_ip = Column(VARCHAR(50), nullable=True, comment="Last login IP")

@@ -96,7 +96,7 @@ function goToReset() {
 <style scoped>
 .forgot-page {
   font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--theme-gradient);
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -152,7 +152,7 @@ function goToReset() {
 
 .form-item input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--theme-primary);
 }
 
 .success-box,

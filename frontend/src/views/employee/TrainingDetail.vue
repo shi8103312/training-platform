@@ -286,6 +286,7 @@ import { ref, computed, onMounted, onActivated, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTrainingStore } from '@/stores/training'
 import { useUserStore } from '@/stores/user'
+import { useThemeStore } from '@/stores/theme'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getComments, createComment, deleteComment, likeComment, unlikeComment, searchUsers } from '@/api/comment'
 import { getExamDetail } from '@/api/exam'
@@ -298,6 +299,7 @@ const route = useRoute()
 const router = useRouter()
 const trainingStore = useTrainingStore()
 const userStore = useUserStore()
+const themeStore = useThemeStore()
 
 const loading = ref(false)
 const commentLoading = ref(false)
@@ -352,9 +354,9 @@ const isDeadlineSoon = computed(() => {
 })
 
 const coverGradient = computed(() => {
-  if (!project.value) return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+  if (!project.value) return themeStore.themes[themeStore.currentTheme]?.gradient || 'var(--theme-gradient)'
   const gradients = [
-    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    themeStore.themes[themeStore.currentTheme]?.gradient || 'var(--theme-gradient)',
     'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
     'linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%)',
     'linear-gradient(135deg, #52c41a 0%, #73d13d 100%)',
@@ -825,7 +827,7 @@ watch(
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #667eea;
+  color: var(--theme-primary);
   text-decoration: none;
   font-size: 14px;
   margin-bottom: 20px;
@@ -921,7 +923,7 @@ watch(
 
 .progress-bar .fill {
   height: 100%;
-  background: linear-gradient(90deg, #667eea, #764ba2);
+  background: var(--theme-gradient);
   border-radius: 5px;
   transition: width 0.5s;
 }
@@ -942,7 +944,7 @@ watch(
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--theme-gradient);
   color: #fff;
 }
 
@@ -953,8 +955,8 @@ watch(
 
 .btn-outline {
   background: #fff;
-  color: #667eea;
-  border: 1px solid #667eea;
+  color: var(--theme-primary);
+  border: 1px solid var(--theme-primary);
 }
 
 .btn-outline:hover:not(:disabled) {
@@ -1000,7 +1002,7 @@ watch(
 }
 
 .material-item:hover {
-  border-color: #667eea;
+  border-color: var(--theme-primary);
   background: #f8f8ff;
 }
 
@@ -1141,7 +1143,7 @@ watch(
 
 .comment-input-wrap textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--theme-primary);
 }
 
 .input-actions {
@@ -1159,7 +1161,7 @@ watch(
 
 .reply-hint {
   font-size: 13px;
-  color: #667eea;
+  color: var(--theme-primary);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1286,7 +1288,7 @@ watch(
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #667eea;
+  background: var(--theme-primary);
   color: #fff;
   display: flex;
   align-items: center;
@@ -1340,7 +1342,7 @@ watch(
 }
 
 .action-btn:hover {
-  color: #667eea;
+  color: var(--theme-primary);
 }
 
 .like-btn.liked {
@@ -1368,7 +1370,7 @@ watch(
 }
 
 .sidebar .progress-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--theme-gradient);
   border-radius: 10px;
   padding: 25px;
   color: #fff;

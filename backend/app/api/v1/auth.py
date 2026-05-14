@@ -228,6 +228,8 @@ async def login(
                 "role": user.role,
                 "role_text": "HR管理员" if user.role == Role.HR_ADMIN else "员工",
                 "dept_id": user.dept_id,
+                "avatar": user.avatar,
+                "preferences": user.preferences or {},
             },
         },
     )

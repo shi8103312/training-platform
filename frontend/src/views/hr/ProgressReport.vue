@@ -85,7 +85,7 @@
           </div>
           <div class="pie-legend">
             <div class="legend-item">
-              <div class="legend-color" style="background: #667eea;"></div>
+              <div class="legend-color" style="background: var(--theme-primary);"></div>
               <span>已完成 {{ stats.completed }}人</span>
             </div>
             <div class="legend-item">
@@ -171,6 +171,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTrainingStore } from '@/stores/training'
+import { useThemeStore } from '@/stores/theme'
 import { ElMessage } from 'element-plus'
 import * as XLSX from 'xlsx'
 import dayjs from 'dayjs'
@@ -178,6 +179,7 @@ import dayjs from 'dayjs'
 const route = useRoute()
 const router = useRouter()
 const trainingStore = useTrainingStore()
+const themeStore = useThemeStore()
 
 const loading = ref(false)
 const projectList = ref([])
@@ -209,8 +211,9 @@ const pagination = reactive({
 const pieStyle = computed(() => {
   const completedDeg = stats.total > 0 ? (stats.completed / stats.total) * 360 : 0
   const inProgressDeg = stats.total > 0 ? (stats.inProgress / stats.total) * 360 : 0
+  const primaryColor = themeStore.themes[themeStore.currentTheme]?.primary || '#667eea'
   return {
-    background: `conic-gradient(#667eea 0deg ${completedDeg}deg, #52c41a ${completedDeg}deg ${completedDeg + inProgressDeg}deg, #fa8c16 ${completedDeg + inProgressDeg}deg 360deg)`,
+    background: `conic-gradient(${primaryColor} 0deg ${completedDeg}deg, #52c41a ${completedDeg}deg ${completedDeg + inProgressDeg}deg, #fa8c16 ${completedDeg + inProgressDeg}deg 360deg)`,
   }
 })
 
@@ -436,7 +439,7 @@ onMounted(async () => {
 
 .filter-item select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--theme-primary);
 }
 
 /* 统计卡片 */
@@ -521,7 +524,7 @@ onMounted(async () => {
 
 .bar {
   width: 40px;
-  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+  background: var(--theme-gradient);
   border-radius: 6px 6px 0 0;
 }
 
@@ -665,13 +668,13 @@ tr:hover {
 
 .progress-bar .fill {
   height: 100%;
-  background: linear-gradient(90deg, #667eea, #764ba2);
+  background: var(--theme-gradient);
   border-radius: 3px;
 }
 
 .progress-text {
   font-size: 13px;
-  color: #667eea;
+  color: var(--theme-primary);
   min-width: 45px;
 }
 
@@ -707,7 +710,7 @@ tr:hover {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--theme-gradient);
   color: #fff;
 }
 
@@ -718,8 +721,8 @@ tr:hover {
 
 .btn-outline {
   background: #fff;
-  color: #667eea;
-  border: 1px solid #667eea;
+  color: var(--theme-primary);
+  border: 1px solid var(--theme-primary);
 }
 
 .btn-outline:hover:not(:disabled) {

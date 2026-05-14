@@ -49,6 +49,7 @@ class UserInfo(BaseModel):
     dept_name: Optional[str] = None
     dept_path: Optional[str] = None
     avatar: Optional[str] = None
+    preferences: Optional[dict] = None
 
     class Config:
         from_attributes = True
@@ -85,3 +86,7 @@ class UserUpdate(BaseModel):
     role: Optional[int] = Field(None, ge=1, le=2)
     status: Optional[int] = Field(None, ge=0, le=1)
     password: Optional[str] = Field(None, min_length=6, max_length=50)
+
+
+class UserPreferencesUpdate(BaseModel):
+    theme: Optional[str] = Field(None, description="Theme: default, sky, forest, sunset, berry")

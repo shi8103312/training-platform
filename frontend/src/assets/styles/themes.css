@@ -1,0 +1,66 @@
+/* Theme CSS Variables - Loaded globally */
+
+:root {
+  /* Default theme (blue-purple gradient) */
+  --theme-primary: #667eea;
+  --theme-secondary: #764ba2;
+  --theme-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --theme-gradient-start: #667eea;
+  --theme-gradient-end: #764ba2;
+}
+
+/* Sky theme (blue) */
+[data-theme="sky"] {
+  --theme-primary: #69C0FF;
+  --theme-secondary: #36CFC9;
+  --theme-gradient: linear-gradient(135deg, #69C0FF 0%, #36CFC9 100%);
+  --theme-gradient-start: #69C0FF;
+  --theme-gradient-end: #36CFC9;
+}
+
+/* Forest theme (green) */
+[data-theme="forest"] {
+  --theme-primary: #95DE64;
+  --theme-secondary: #29BF6B;
+  --theme-gradient: linear-gradient(135deg, #95DE64 0%, #29BF6B 100%);
+  --theme-gradient-start: #95DE64;
+  --theme-gradient-end: #29BF6B;
+}
+
+/* Sunset theme (orange) */
+[data-theme="sunset"] {
+  --theme-primary: #FFD591;
+  --theme-secondary: #FFA940;
+  --theme-gradient: linear-gradient(135deg, #FFD591 0%, #FFA940 100%);
+  --theme-gradient-start: #FFD591;
+  --theme-gradient-end: #FFA940;
+}
+
+/* Berry theme (red-pink) */
+[data-theme="berry"] {
+  --theme-primary: #FF7875;
+  --theme-secondary: #D43A69;
+  --theme-gradient: linear-gradient(135deg, #FF7875 0%, #D43A69 100%);
+  --theme-gradient-start: #FF7875;
+  --theme-gradient-end: #D43A69;
+}
+
+/* Common gradient usage classes */
+.theme-gradient-bg {
+  background: var(--theme-gradient) !important;
+}
+
+.theme-gradient-text {
+  background: var(--theme-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.theme-primary {
+  color: var(--theme-primary) !important;
+}
+
+.theme-secondary {
+  color: var(--theme-secondary) !important;
+}
