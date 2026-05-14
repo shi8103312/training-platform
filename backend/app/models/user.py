@@ -6,6 +6,7 @@ from sqlalchemy.dialects.mysql import TINYINT
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..database import Base
+from ..core.permissions import Role
 
 
 class User(Base):
@@ -23,7 +24,7 @@ class User(Base):
     real_name = Column(VARCHAR(50), nullable=False, comment="Real name")
     email = Column(VARCHAR(100), unique=True, nullable=False, comment="Email")
     phone = Column(VARCHAR(20), nullable=True, comment="Phone number")
-    role = Column(TINYINT, nullable=False, default=2, comment="Role: 1=HR_ADMIN, 2=EMPLOYEE")
+    role = Column(TINYINT, nullable=False, default=2, comment="Role: 0=SUPER_ADMIN, 1=HR_ADMIN, 2=EMPLOYEE")
     avatar = Column(VARCHAR(255), nullable=True, comment="Avatar URL")
     preferences = Column(JSON, nullable=True, comment="User preferences (theme, etc)")
     status = Column(TINYINT, nullable=False, default=1, comment="Status: 0=Disabled, 1=Enabled")
@@ -45,12 +46,16 @@ class User(Base):
     comments = relationship("Comment", back_populates="user")
 
     @property
+    def is_super_admin(self) -> bool:
+        return self.role == Role.SUPER_ADMIN
+
+    @property
     def is_hr_admin(self) -> bool:
-        return self.role == 1
+        return self.role == Role.HR_ADMIN
 
     @property
     def is_employee(self) -> bool:
-        return self.role == 2
+        return self.role == Role.EMPLOYEE
 
 
 class AuthToken(Base):

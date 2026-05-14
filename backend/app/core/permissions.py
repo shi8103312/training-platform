@@ -15,8 +15,9 @@ class Role:
     """
     Role constants.
     """
-    HR_ADMIN = 1
-    EMPLOYEE = 2
+    SUPER_ADMIN = 0   # 超级管理员 - 系统最高权限
+    HR_ADMIN = 1      # HR管理员 - 培训管理
+    EMPLOYEE = 2      # 普通员工
 
 
 def require_role(*roles: int):

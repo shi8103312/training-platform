@@ -95,8 +95,17 @@ def require_role(*roles: int):
     return role_checker
 
 
+def require_super_admin():
+    """
+    Dependency that requires SUPER_ADMIN role (highest privileges).
+    """
+    from ..models.user import Role
+    return require_role(Role.SUPER_ADMIN)
+
+
 def require_hr_admin():
     """
     Dependency that requires HR_ADMIN role.
     """
-    return require_role(1)
+    from ..models.user import Role
+    return require_role(Role.HR_ADMIN)

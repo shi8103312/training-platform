@@ -226,7 +226,7 @@ async def login(
                 "real_name": user.real_name,
                 "email": user.email,
                 "role": user.role,
-                "role_text": "HR管理员" if user.role == Role.HR_ADMIN else "员工",
+                "role_text": "超级管理员" if user.role == Role.SUPER_ADMIN else "HR管理员" if user.role == Role.HR_ADMIN else "员工",
                 "dept_id": user.dept_id,
                 "avatar": user.avatar,
                 "preferences": user.preferences or {},

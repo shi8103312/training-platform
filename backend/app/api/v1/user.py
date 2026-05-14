@@ -45,7 +45,7 @@ async def get_user_info(
             "email": current_user.email,
             "phone": current_user.phone,
             "role": current_user.role,
-            "role_text": "HR管理员" if current_user.role == Role.HR_ADMIN else "员工",
+            "role_text": "超级管理员" if current_user.role == Role.SUPER_ADMIN else "HR管理员" if current_user.role == Role.HR_ADMIN else "员工",
             "dept_id": current_user.dept_id,
             "dept_name": dept_name,
             "dept_path": dept_path,

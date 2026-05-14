@@ -74,7 +74,7 @@ class UserCreate(BaseModel):
     email: Optional[str] = Field(None, max_length=100)
     phone: Optional[str] = Field(None, max_length=20)
     dept_id: Optional[str] = Field(None, max_length=32)
-    role: int = Field(default=2, ge=1, le=2)  # 1=HR_ADMIN, 2=EMPLOYEE
+    role: int = Field(default=2, ge=0, le=2)  # 0=SUPER_ADMIN, 1=HR_ADMIN, 2=EMPLOYEE
     status: int = Field(default=1, ge=0, le=1)
 
 
@@ -83,7 +83,7 @@ class UserUpdate(BaseModel):
     email: Optional[str] = Field(None, max_length=100)
     phone: Optional[str] = Field(None, max_length=20)
     dept_id: Optional[str] = Field(None, max_length=32)
-    role: Optional[int] = Field(None, ge=1, le=2)
+    role: Optional[int] = Field(None, ge=0, le=2)
     status: Optional[int] = Field(None, ge=0, le=1)
     password: Optional[str] = Field(None, min_length=6, max_length=50)
 
