@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:20-alpine as builder
 
 WORKDIR /app
 
@@ -7,6 +7,18 @@ RUN npm install
 
 COPY . .
 
-EXPOSE 5173
+# 构建生产版本
+RUN npm run build
 
-CMD ["npm", "run", "dev"]
+# 生产镜像
+FROM nginx:alpine
+
+# 复制构建产物
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# 复制nginx配置
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
