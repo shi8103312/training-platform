@@ -1,0 +1,6 @@
+{
+  "backend": 8003,
+  "frontend": 5173,
+  "mysql": 3306,
+  "redis": 6379
+}

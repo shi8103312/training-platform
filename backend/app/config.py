@@ -6,6 +6,20 @@ from functools import lru_cache
 from typing import Optional
 import secrets
 import string
+import json
+import os
+
+
+def load_ports_config() -> dict:
+    """Load ports configuration from ports.json in project root."""
+    # Project root is two levels up from app/ (app/ -> backend/ -> project root)
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    ports_file = os.path.join(backend_dir, '..', 'ports.json')
+    try:
+        with open(ports_file, 'r') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
 
 
 def generate_secure_secret(length: int = 64) -> str:
@@ -19,6 +33,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Training Platform"
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
+    BACKEND_PORT: int = 8003  # Default port, can be overridden by ports.json
 
     # Database
     DB_HOST: str = "localhost"
@@ -81,6 +96,10 @@ class Settings(BaseSettings):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        # Load port configuration from ports.json
+        ports_config = load_ports_config()
+        if ports_config.get('backend'):
+            self.BACKEND_PORT = ports_config['backend']
         # Generate secure JWT secret if not set
         if not self.JWT_SECRET_KEY:
             self.JWT_SECRET_KEY = generate_secure_secret(64)
