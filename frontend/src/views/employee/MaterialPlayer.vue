@@ -88,8 +88,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, onBeforeRouteLeave, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useTrainingStore } from '@/stores/training'
 import { getPlayToken, updateMaterialDuration } from '@/api/training'
