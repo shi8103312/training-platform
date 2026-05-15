@@ -13,7 +13,7 @@ RUN npm run build
 # 生产镜像
 FROM nginx:alpine
 
-# 复制构建产物
+# 从构建阶段复制构建产物到nginx目录
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # 复制nginx配置
