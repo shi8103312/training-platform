@@ -165,6 +165,55 @@ docker-compose up -d --build
 - [x] CORS 跨域配置
 - [x] 密码安全存储 (bcrypt)
 
+## 数据库迁移
+
+项目使用 Alembic 进行数据库Schema版本管理。
+
+### 初始化迁移（首次设置）
+
+如果数据库表尚未创建，先初始化数据库，再运行迁移：
+
+```bash
+cd backend
+
+# 初始化数据库表（首次）
+python -c "from app.database import engine, Base; Base.metadata.create_all(bind=engine)"
+
+# 标记当前数据库状态为初始迁移（不执行任何DDL）
+alembic stamp a8bf6c8e0a8d
+```
+
+### 日常开发
+
+```bash
+cd backend
+
+# 基于模型变更生成新的迁移文件
+alembic revision --autogenerate -m "描述变更"
+
+# 查看所有迁移
+alembic history
+
+# 查看当前迁移状态
+alembic current
+
+# 升级到最新迁移
+alembic upgrade head
+
+# 降级到上一个迁移
+alembic downgrade -1
+```
+
+### 生产环境部署
+
+```bash
+# 查看待执行的迁移
+alembic upgrade head --sql
+
+# 执行迁移
+alembic upgrade head
+```
+
 ## API 文档
 
 启动后端服务后访问: http://localhost:8000/docs
