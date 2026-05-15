@@ -72,7 +72,31 @@ npm run dev
 ### Docker 启动 (推荐)
 
 ```bash
+# 启动所有服务（MySQL、Redis、Backend、Frontend）
 docker-compose up -d
+
+# 查看服务状态
+docker-compose ps
+
+# 查看日志
+docker-compose logs -f backend
+docker-compose logs -f frontend
+```
+
+**Docker 服务说明：**
+- **MySQL**: 127.0.0.1:3306 - 数据库
+- **Redis**: 127.0.0.1:6379 - 缓存/会话存储
+- **Backend**: http://localhost:8000 - API 服务
+- **Frontend**: http://localhost:5173 - 前端页面
+
+**停止服务：**
+```bash
+docker-compose down
+```
+
+**重新构建：**
+```bash
+docker-compose up -d --build
 ```
 
 ## 测试账号
