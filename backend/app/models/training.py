@@ -89,6 +89,7 @@ class Material(Base):
     mime_type = Column(VARCHAR(100), nullable=False, comment="MIME type")
     encryption_key = Column(VARCHAR(64), nullable=True, comment="Video encryption key")
     sort_order = Column(INT, nullable=False, default=0, comment="Sort order")
+    is_required = Column(TINYINT, nullable=False, default=1, comment="Is required: 0=Optional, 1=Required")
     status = Column(TINYINT, nullable=False, default=1, comment="Status: 0=Disabled, 1=Enabled")
     create_time = Column(DATETIME, nullable=False, server_default=func.now())
     update_time = Column(

@@ -249,10 +249,11 @@ async def start_exam(
             "message": f"您已使用完所有考试次数（{exam.attempt_limit}次）",
         }
 
-    # Check prerequisite: all materials completed
+    # Check prerequisite: all required materials completed
     materials = db.query(Material).filter(
         Material.project_id == exam.project_id,
         Material.is_deleted == 0,
+        Material.is_required == 1,  # Only check required materials
     ).all()
 
     for m in materials:

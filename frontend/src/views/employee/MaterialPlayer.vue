@@ -88,7 +88,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onBeforeRouteLeave, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useTrainingStore } from '@/stores/training'
@@ -336,7 +336,8 @@ async function saveProgress() {
 
   const videoEl = videoRef.value
   const position = Math.floor(videoEl.currentTime || 0)
-  const maxPos = Math.floor(videoEl.currentTime || 0)
+  // Use maxAllowedPosition which tracks the furthest watched position
+  const maxPos = Math.floor(maxAllowedPosition.value || 0)
 
   console.log('[DEBUG] saveProgress: position:', position, 'max:', maxPos, 'totalWatched:', Math.floor(totalWatchedSeconds.value), 'isCompleted:', isCompleted.value)
   try {
@@ -399,6 +400,14 @@ onUnmounted(() => {
   console.log('[DEBUG] onUnmounted called')
   if (progressTimer.value) clearTimeout(progressTimer.value)
   // Note: saveProgress is already called in togglePlay when user pauses
+})
+
+// Save progress when leaving the page
+onBeforeRouteLeave(async () => {
+  if (isPlaying.value) {
+    videoRef.value?.pause()
+    await saveProgress()
+  }
 })
 </script>
 
