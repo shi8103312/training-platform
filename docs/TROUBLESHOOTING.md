@@ -77,10 +77,10 @@ async def mark_notification_read(notif_id: str, ...):
 
 **原因**:
 - `.env` 配置 `VITE_API_BASE_URL=http://localhost:8002/api` 指向错误端口
-- 实际后端运行在 8000 端口
+- 实际后端运行在 8003 端口
 
 **解决方案**:
-- 修改 `frontend/.env`：`VITE_API_BASE_URL=http://localhost:8000/api`
+- 修改 `frontend/.env`：`VITE_API_BASE_URL=http://localhost:8003/api`
 - 重启前端服务
 
 ---
@@ -191,13 +191,13 @@ async function saveProgress() {
 | 服务 | 端口 |
 |------|------|
 | 前端 (Vite) | 5173 |
-| 后端 (FastAPI) | 8000 |
+| 后端 (FastAPI) | 8003 |
 | MySQL | 3306 |
 | Redis | 6379 |
 
 ### API 基础路径
-- 开发环境: `http://localhost:8000/api`
-- 前端代理: `/api` -> `http://localhost:8000`
+- 开发环境: `http://localhost:8003/api`
+- 前端代理: `/api` -> `http://localhost:8003`
 
 ---
 

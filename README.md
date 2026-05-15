@@ -54,7 +54,7 @@ cp .env.example .env
 # 编辑 .env 配置数据库连接
 
 # 启动服务
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8003
 ```
 
 ### 前端启动
@@ -86,7 +86,7 @@ docker-compose logs -f frontend
 **Docker 服务说明：**
 - **MySQL**: 127.0.0.1:3306 - 数据库
 - **Redis**: 127.0.0.1:6379 - 缓存/会话存储
-- **Backend**: http://localhost:8000 - API 服务
+- **Backend**: http://localhost:8003 - API 服务
 - **Frontend**: http://localhost:5173 - 前端页面
 
 **停止服务：**
@@ -216,4 +216,4 @@ alembic upgrade head
 
 ## API 文档
 
-启动后端服务后访问: http://localhost:8000/docs
+启动后端服务后访问: http://localhost:8003/docs

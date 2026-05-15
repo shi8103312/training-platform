@@ -31,7 +31,7 @@
   - 80 (HTTP)
   - 443 (HTTPS)
   - 5173 (前端开发服务器)
-  - 8000 (后端API)
+  - 8003 (后端API)
 
 ---
 
@@ -127,7 +127,7 @@ pip install -r requirements.txt
 python -c "from app.database import init_db; init_db()"
 
 # 启动服务
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+uvicorn app.main:app --host 0.0.0.0 --port 8003 --workers 4
 ```
 
 #### 2.2.2 前端部署
@@ -164,7 +164,7 @@ server {
     }
 
     location /api {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:8003;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
