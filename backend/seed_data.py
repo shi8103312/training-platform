@@ -2,7 +2,11 @@
 Database Seed Script - Initialize test data
 """
 import sys
-sys.path.insert(0, 'backend')
+from pathlib import Path
+
+# Add parent directory (backend root) to path for imports
+backend_root = Path(__file__).parent
+sys.path.insert(0, str(backend_root))
 
 from datetime import datetime, timedelta
 import uuid

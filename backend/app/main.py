@@ -16,6 +16,29 @@ from .config import settings
 from .database import init_db
 from .redis import close_redis
 
+
+def seed_if_empty():
+    """Seed database with initial data if tables are empty."""
+    import sys
+    from pathlib import Path
+    from .database import SessionLocal
+    from .models.user import User
+    try:
+        db = SessionLocal()
+        count = db.query(User).count()
+        db.close()
+        if count == 0:
+            print("Database is empty, seeding initial data...")
+            # Import seed_data from backend root (parent of app/)
+            seed_data_path = Path(__file__).parent.parent / "seed_data"
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("seed_data", seed_data_path.with_suffix(".py"))
+            seed_data = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(seed_data)
+            seed_data.seed_database()
+    except Exception as e:
+        print(f"Seed check failed (may be normal on first run): {e}")
+
 from .api.v1 import auth, user, department, training, material, progress, exam, comment, notification, system_settings
 
 # Initialize rate limiter
@@ -33,6 +56,9 @@ async def lifespan(app: FastAPI):
         print("Database initialized successfully")
     except Exception as e:
         print(f"Database initialization failed: {e}")
+
+    # Seed initial data if database is empty
+    seed_if_empty()
 
     yield
 
