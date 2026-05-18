@@ -226,7 +226,11 @@ async function fetchDashboardData() {
 }
 
 onMounted(() => {
-  fetchDashboardData()
+  // Check if logged in before fetching data
+  const token = localStorage.getItem('token')
+  if (token) {
+    fetchDashboardData()
+  }
 })
 </script>
 

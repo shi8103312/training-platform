@@ -234,10 +234,14 @@ async function fetchProjectList() {
 }
 
 onMounted(async () => {
-  await fetchStats()
-  await fetchProjectList()
-  await fetchProjectStats()
-  await fetchTrend()
+  // Check if logged in before fetching data
+  const token = localStorage.getItem('token')
+  if (token) {
+    await fetchStats()
+    await fetchProjectList()
+    await fetchProjectStats()
+    await fetchTrend()
+  }
 })
 </script>
 
