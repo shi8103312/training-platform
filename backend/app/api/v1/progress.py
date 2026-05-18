@@ -190,9 +190,13 @@ async def update_progress(
     total_watched = progress_data.total_watched_seconds or 0
 
     if progress:
-        # Anti-cheating: ignore if trying to skip ahead more than 30 seconds
-        if max_position > progress.max_position + 30:
-            print(f"[DEBUG] Anti-cheat triggered: max_position={max_position} > progress.max_position + 30 = {progress.max_position + 30}")
+        # Anti-cheating: allow up to 5 minutes gap for legitimate resume after pause/browser close
+        # If last watch was more than 5 minutes ago, reset anti-cheat
+        time_since_last_watch = (current_time - progress.last_watch_time).total_seconds() if progress.last_watch_time else 0
+        anti_cheat_threshold = 300 if time_since_last_watch > 300 else 30
+
+        if max_position > progress.max_position + anti_cheat_threshold:
+            print(f"[DEBUG] Anti-cheat triggered: max_position={max_position} > progress.max_position + {anti_cheat_threshold} = {progress.max_position + anti_cheat_threshold}, time_since_last_watch={time_since_last_watch}s")
             # Detected cheating, only update time, not position
             progress.last_watch_time = current_time
             db.commit()

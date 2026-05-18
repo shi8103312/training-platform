@@ -156,6 +156,7 @@ async def upload_material(
             "material_id": material.material_id,
             "title": material.title,
             "material_type": material.material_type,
+            "storage_path": material.storage_path,
             "duration": material.duration,
             "file_size": material.file_size,
             "status": "processing" if material_type == 1 else "ready",

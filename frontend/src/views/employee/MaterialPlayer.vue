@@ -264,28 +264,9 @@ function handleLoadedMetadata() {
     })
   }
 
-  // Check if already completed
-  const progress = trainingStore.progress[route.params.materialId]
-  console.log('[DEBUG] Progress data from store:', progress)
-  if (progress && progress.is_completed) {
-    // Already completed - allow re-watch from any position
-    isCompleted.value = true
-    lastPosition.value = progress.max_position || 0
-    showResumePrompt.value = true
-    console.log('[DEBUG] Video already completed, allowing re-watch')
-  } else if (progress && progress.max_position > 0) {
-    // Not completed yet - must continue from last position (cannot restart)
-    isCompleted.value = false
-    lastPosition.value = progress.max_position || 0
-    showResumePrompt.value = true
-    console.log('[DEBUG] Video not completed, must continue from:', lastPosition.value)
-  } else {
-    // No progress at all - fresh start
-    isCompleted.value = false
-    lastPosition.value = 0
-    showResumePrompt.value = true
-    console.log('[DEBUG] Fresh start')
-  }
+  // Note: Progress state (lastPosition, isCompleted, showResumePrompt) is already
+  // initialized in onMounted after fetchProgress completes. We don't override
+  // it here to avoid race conditions with video loading.
 }
 
 function resumePlay() {
@@ -293,20 +274,20 @@ function resumePlay() {
 
   // Continue from last position
   console.log('[DEBUG] resumePlay: continuing from:', lastPosition.value)
-  videoRef.value.currentTime = lastPosition.value
-  maxAllowedPosition.value = lastPosition.value  // Must watch continuously from here
-  sessionStartTime.value = Date.now()  // Track session start time
-  sessionStartPosition.value = lastPosition.value  // Track session start position
-  totalWatchedSeconds.value = 0  // Reset session watch time
   showResumePrompt.value = false
-  videoRef.value.play()
+  videoRef.value.currentTime = lastPosition.value
+  maxAllowedPosition.value = lastPosition.value
+  sessionStartTime.value = Date.now()
+  sessionStartPosition.value = lastPosition.value
+  totalWatchedSeconds.value = 0
   isPlaying.value = true
-  currentTime.value = videoRef.value.currentTime
+  videoRef.value.play()
 }
 
 function startPlay() {
   if (!videoRef.value) return
 
+  showResumePrompt.value = false
   if (isCompleted.value) {
     // Completed video - can start from beginning for re-watch
     console.log('[DEBUG] startPlay: re-watching from beginning')
@@ -324,10 +305,8 @@ function startPlay() {
     sessionStartPosition.value = lastPosition.value
     totalWatchedSeconds.value = 0
   }
-  showResumePrompt.value = false
-  videoRef.value.play()
   isPlaying.value = true
-  currentTime.value = videoRef.value.currentTime
+  videoRef.value.play()
 }
 
 async function saveProgress() {
@@ -385,6 +364,18 @@ onMounted(async () => {
   await trainingStore.fetchProjectDetail(projectId)
   material.value = trainingStore.materials.find((m) => m.material_id === materialId)
 
+  // Fetch progress BEFORE loading video, and wait for it to complete
+  await trainingStore.fetchProgress(projectId)
+
+  // Initialize video state from store BEFORE setting videoSrc
+  const savedProgress = trainingStore.progress[materialId]
+  if (savedProgress) {
+    lastPosition.value = savedProgress.max_position || 0
+    isCompleted.value = savedProgress.is_completed || false
+    maxAllowedPosition.value = lastPosition.value
+    console.log('[DEBUG] Initialized from saved progress: lastPosition=', lastPosition.value, 'isCompleted=', isCompleted.value)
+  }
+
   if (material.value?.material_type === 1) {
     await fetchPlayToken()
   } else if (material.value?.material_type === 2) {
@@ -393,7 +384,12 @@ onMounted(async () => {
     documentSrc.value = baseUrl + '/uploads/' + material.value.storage_path
   }
 
-  await trainingStore.fetchProgress(projectId)
+  // Show resume prompt after video src is set (if there's saved progress)
+  if (lastPosition.value > 0 && !isCompleted.value) {
+    showResumePrompt.value = true
+  } else if (isCompleted.value) {
+    showResumePrompt.value = true
+  }
 })
 
 onUnmounted(() => {

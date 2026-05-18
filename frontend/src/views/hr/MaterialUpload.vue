@@ -90,6 +90,35 @@
         <el-button type="primary" :loading="uploading" @click="handleUpload">上传</el-button>
       </template>
     </el-dialog>
+
+    <!-- 上传完成预览对话框 -->
+    <el-dialog v-model="showPreviewDialog" :title="previewTitle" width="800px" destroy-on-close>
+      <div v-if="previewLoading" style="text-align: center; padding: 40px">
+        <el-icon class="is-loading" style="font-size: 32px"><Loading /></el-icon>
+        <p>加载中...</p>
+      </div>
+      <div v-else-if="previewType === 1" class="preview-video">
+        <video
+          ref="previewVideoRef"
+          :src="previewUrl"
+          controls
+          style="width: 100%; max-height: 500px; border-radius: 8px"
+        />
+      </div>
+      <div v-else-if="previewType === 2" class="preview-doc">
+        <iframe
+          :src="previewUrl"
+          style="width: 100%; height: 500px; border: none; border-radius: 8px"
+        />
+      </div>
+      <div v-else style="text-align: center; padding: 40px; color: #999">
+        暂不支持预览此格式
+      </div>
+
+      <template #footer>
+        <el-button type="primary" @click="showPreviewDialog = false">完成</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -99,7 +128,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useTrainingStore } from '@/stores/training'
 import { uploadMaterial, uploadMaterialWithProgress, deleteMaterial } from '@/api/training'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, Upload } from '@element-plus/icons-vue'
+import { ArrowLeft, Upload, Loading } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -115,6 +144,15 @@ const showUploadDialog = ref(false)
 const uploadFormRef = ref(null)
 const uploadRef = ref(null)
 const fileList = ref([])
+
+// 预览相关
+const showPreviewDialog = ref(false)
+const previewLoading = ref(false)
+const previewUrl = ref('')
+const previewType = ref(1)
+const previewTitle = ref('')
+const previewVideoRef = ref(null)
+const uploadedMaterialId = ref(null)
 
 const uploadForm = ref({
   title: '',
@@ -183,6 +221,25 @@ async function handleUpload() {
           file: null,
         }
         await fetchMaterials()
+
+        // 显示预览
+        const uploadedMaterial = res.data
+        if (uploadedMaterial) {
+          uploadedMaterialId.value = uploadedMaterial.material_id
+          previewTitle.value = uploadedMaterial.title
+          previewType.value = uploadedMaterial.material_type
+
+          // 构建预览 URL
+          const baseUrl = window.location.origin
+          if (uploadedMaterial.material_type === 1) {
+            previewUrl.value = baseUrl + '/uploads/' + uploadedMaterial.storage_path
+          } else {
+            previewUrl.value = baseUrl + '/uploads/' + uploadedMaterial.storage_path
+          }
+
+          previewLoading.value = false
+          showPreviewDialog.value = true
+        }
       } else {
         ElMessage.error(res.message || '上传失败')
       }
