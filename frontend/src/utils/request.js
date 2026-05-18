@@ -152,7 +152,10 @@ request.interceptors.response.use(
           router.push('/login')
           return Promise.reject(error)
         case 403:
-          ElMessage.error('权限不足')
+          // Don't show error if user has logged out (no token)
+          if (localStorage.getItem('token')) {
+            ElMessage.error('权限不足')
+          }
           break
         case 404:
           ElMessage.error('资源不存在')
