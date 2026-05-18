@@ -7,13 +7,20 @@ export const useNotificationStore = defineStore('notification', () => {
   let pollTimer = null
 
   async function fetchUnreadCount() {
+    // Check if logged in before making API call
+    const token = localStorage.getItem('token')
+    if (!token) return
+
     try {
       const res = await getUnreadCount()
       if (res.code === 0) {
         unreadCount.value = res.data.count
       }
     } catch (error) {
-      console.error('Failed to fetch unread count:', error)
+      // Silently ignore errors during logout
+      if (localStorage.getItem('token')) {
+        console.error('Failed to fetch unread count:', error)
+      }
     }
   }
 
